@@ -1,0 +1,19 @@
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2015
+Project("{192FF1B2-0AB3-EC9B-7900-536B36868469}") = "RemotePluginClient", "RemotePluginClient.vcxproj", "{11156CA5-5641-339E-3BFE-77AB69267221}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{11156CA5-5641-339E-3BFE-77AB69267221}.Debug|Win32.ActiveCfg = Debug|Win32
+		{11156CA5-5641-339E-3BFE-77AB69267221}.Debug|Win32.Build.0 = Debug|Win32
+		{11156CA5-5641-339E-3BFE-77AB69267221}.Release|Win32.ActiveCfg = Release|Win32
+		{11156CA5-5641-339E-3BFE-77AB69267221}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
