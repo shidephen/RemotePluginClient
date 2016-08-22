@@ -26,7 +26,7 @@ public:
 	SystemSemaphore(const std::string& key, int initialValue = 0, AccessMode mode = Open);
 	~SystemSemaphore();
 
-	void Key(const std::string& key);
+	void Key(const std::string& key, int initValue = 0, AccessMode mode = Open);
 	std::string Key() const;
 
 	void NativeKey(const std::string& nativeKey);
@@ -89,6 +89,18 @@ private:
 	
 	std::string _key;
 	std::string _native_key;
+	bool _InitKey();
+
+	void* _memory;
+	size_t _size;
+
+	HANDLE _handle;
+	DWORD _last_error;
+	HANDLE _aquire_handle();
+	void _release_handle();
+
+	SystemSemaphore _semaphore;
+	bool _locked_by_me;
 
 	//noncopyable
 	SharedMemory(const SharedMemory&) = delete;
