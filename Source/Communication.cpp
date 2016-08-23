@@ -13,6 +13,9 @@
 #include <Wincrypt.h>
 #include <regex>
 #include <sstream>
+#include <cassert>
+#include <thread>
+#include <chrono>
 
 using namespace std;
 
@@ -91,6 +94,7 @@ string make_platform_key(const string& prefix, const string& key)
 
 //==============================================================================
 //======================== SystemSemaphore methods =============================
+const char* SystemSemaphore::prefix = "qipc_systemsem_";
 
 HANDLE SystemSemaphore::_aquire_handle()
 {
@@ -99,12 +103,12 @@ HANDLE SystemSemaphore::_aquire_handle()
 
 	if (_semaphore_handle <= 0)
 		_semaphore_handle = 
-		CreateSemaphoreEx(NULL, // security attribute
-						_value, // initial value
-						MAXLONG, // max value
-						_native_key.c_str(), // filename
-						0, //flags
-						SEMAPHORE_ALL_ACCESS); // access
+		CreateSemaphoreEx(NULL,					// security attribute
+						_value,					// initial value
+						MAXLONG,				// max value
+						_native_key.c_str(),	// filename
+						0,						//flags
+						SEMAPHORE_ALL_ACCESS);	// access
 
 	return _semaphore_handle;
 }
@@ -183,6 +187,8 @@ bool SystemSemaphore::Release(size_t count /*= 1*/)
 
 //==============================================================================
 //======================== SharedMemory methods ================================
+
+const char* SharedMemory::prefix = "qipc_sharedmemory_";
 
 bool SharedMemory::_InitKey()
 {
@@ -274,12 +280,12 @@ bool SharedMemory::Create(size_t size, AccessMode mode /*= ReadWrite*/)
 		return false;
 
 	_handle = CreateFileMapping(
-		INVALID_HANDLE_VALUE, // file
-		NULL, // security attributes
-		PAGE_READWRITE, // page protect
-		0, // max size high
-		size, // max size low
-		_native_key.c_str()); // name
+		INVALID_HANDLE_VALUE,	// file
+		NULL,					// security attributes
+		PAGE_READWRITE,			// page protect
+		0,						// max size high
+		size,					// max size low
+		_native_key.c_str());	// name
 
 	_last_error = GetLastError();
 	if (_last_error == ERROR_ALREADY_EXISTS && _handle <= 0)
@@ -397,6 +403,239 @@ bool SharedMemory::Unlock()
 
 	_last_error = GetLastError();
 	return false;
+}
+
+//==============================================================================
+
+//============================ shmFifo methods =================================
+// constructor for master-side
+shmFifo::shmFifo() :
+	m_invalid(false),
+	m_master(true),
+	m_shmKey(0),
+	m_shmObj(""),
+	m_data(NULL),
+	m_dataSem(""),
+	m_messageSem(""),
+	m_lockDepth(0)
+{
+	do
+	{
+		m_shmObj.Key(to_string(++m_shmKey));
+		m_shmObj.Create(sizeof(shmData));
+	} while (m_shmObj.Error() != ERROR_SUCCESS);
+
+	m_data = (shmData *)m_shmObj.Data();
+
+	assert(m_data != NULL);
+	m_data->startPtr = m_data->endPtr = 0;
+	static int k = 0;
+	m_data->dataSem.semKey = (GetCurrentProcessId() << 10) + ++k;
+	m_data->messageSem.semKey = (GetCurrentProcessId() << 10) + ++k;
+	m_dataSem.Key(to_string(m_data->dataSem.semKey),
+		1, SystemSemaphore::Create);
+	m_messageSem.Key(to_string(
+		m_data->messageSem.semKey),
+		0, SystemSemaphore::Create);
+}
+
+// constructor for remote-/client-side - use _shm_key for making up
+// the connection to master
+shmFifo::shmFifo(int32_t _shm_key) :
+	m_invalid(false),
+	m_master(false),
+	m_shmKey(0),
+	m_shmObj(to_string(_shm_key)),
+	m_data(NULL),
+	m_dataSem(""),
+	m_messageSem(""),
+	m_lockDepth(0)
+{
+	if (m_shmObj.Attach())
+	{
+		m_data = (shmData *)m_shmObj.Data();
+	}
+	assert(m_data != NULL);
+	m_dataSem.Key(to_string(m_data->dataSem.semKey));
+	m_messageSem.Key(to_string(
+		m_data->messageSem.semKey));
+}
+
+shmFifo::~shmFifo()
+{
+
+}
+
+inline bool shmFifo::isInvalid() const
+{
+	return m_invalid;
+}
+
+void shmFifo::invalidate()
+{
+	m_invalid = true;
+}
+
+// do we act as master (i.e. not as remote-process?)
+inline bool shmFifo::isMaster() const
+{
+	return m_master;
+}
+
+// recursive lock
+inline void shmFifo::lock()
+{
+	if (!isInvalid() && InterlockedAdd(&m_lockDepth, 1) == 1)
+	{
+		m_dataSem.Acquire();
+	}
+}
+
+// recursive unlock
+inline void shmFifo::unlock()
+{
+	if (InterlockedAddAcquire(&m_lockDepth, -1) <= 0)
+	{
+		m_dataSem.Release();
+	}
+}
+
+// wait until message-semaphore is available
+inline void shmFifo::waitForMessage()
+{
+	if (!isInvalid())
+	{
+		m_messageSem.Acquire();
+	}
+}
+
+// increase message-semaphore
+inline void shmFifo::messageSent()
+{
+	m_messageSem.Release();
+}
+
+
+inline int32_t shmFifo::readInt()
+{
+	int32_t i;
+	read(&i, sizeof(i));
+	return i;
+}
+
+inline void shmFifo::writeInt(const int32_t & _i)
+{
+	write(&_i, sizeof(_i));
+}
+
+inline std::string shmFifo::readString()
+{
+	const int len = readInt();
+	if (len)
+	{
+		char * sc = new char[len + 1];
+		read(sc, len);
+		sc[len] = 0;
+		std::string s(sc);
+		delete[] sc;
+		return s;
+	}
+	return std::string();
+}
+
+
+inline void shmFifo::writeString(const std::string & _s)
+{
+	const int len = _s.size();
+	writeInt(len);
+	write(_s.c_str(), len);
+}
+
+
+inline bool shmFifo::messagesLeft()
+{
+	if (isInvalid())
+	{
+		return false;
+	}
+	lock();
+	const bool empty = (m_data->startPtr == m_data->endPtr);
+	unlock();
+	return !empty;
+}
+
+
+inline int shmFifo::shmKey() const
+{
+	return m_shmKey;
+}
+
+inline void shmFifo::fastMemCpy(void * _dest, const void * _src,
+	const int _len)
+{
+	// calling memcpy() for just an integer is obsolete overhead
+	if (_len == 4)
+	{
+		*((int32_t *)_dest) = *((int32_t *)_src);
+	}
+	else
+	{
+		memcpy(_dest, _src, _len);
+	}
+}
+
+void shmFifo::read(void * _buf, int _len)
+{
+	if (isInvalid())
+	{
+		memset(_buf, 0, _len);
+		return;
+	}
+	lock();
+	while (isInvalid() == false &&
+		_len > m_data->endPtr - m_data->startPtr)
+	{
+		unlock();
+		this_thread::sleep_for(chrono::nanoseconds{ 5 });
+		lock();
+	}
+	fastMemCpy(_buf, m_data->data + m_data->startPtr, _len);
+	m_data->startPtr += _len;
+	// nothing left?
+	if (m_data->startPtr == m_data->endPtr)
+	{
+		// then reset to 0
+		m_data->startPtr = m_data->endPtr = 0;
+	}
+	unlock();
+}
+
+void shmFifo::write(const void * _buf, int _len)
+{
+	if (isInvalid() || _len > SHM_FIFO_SIZE)
+	{
+		return;
+	}
+	lock();
+	while (_len > SHM_FIFO_SIZE - m_data->endPtr)
+	{
+		// if no space is left, try to move data to front
+		if (m_data->startPtr > 0)
+		{
+			memmove(m_data->data,
+				m_data->data + m_data->startPtr,
+				m_data->endPtr - m_data->startPtr);
+			m_data->endPtr = m_data->endPtr -
+				m_data->startPtr;
+			m_data->startPtr = 0;
+		}
+		unlock();
+		this_thread::sleep_for(chrono::nanoseconds{ 5 });
+		lock();
+	}
+	fastMemCpy(m_data->data + m_data->endPtr, _buf, _len);
+	m_data->endPtr += _len;
+	unlock();
 }
 
 //==============================================================================
