@@ -13,6 +13,7 @@
 #include <cstdint>
 #include "Communication.h"
 #include <memory>
+#include <mutex>
 #include <vector>
 #include "VstSyncData.h"
 #include "MidiEvent.h"
@@ -46,29 +47,65 @@ public:
 		IdUserBase = 64
 	};
 
+	enum VstRemoteMessageIDs
+	{
+		// vstPlugin -> remoteVstPlugin
+		IdVstLoadPlugin = IdUserBase,
+		IdVstPluginWindowInformation,
+		IdVstClosePlugin,
+		IdVstSetTempo,
+		IdVstSetLanguage,
+		IdVstGetParameterCount,
+		IdVstGetParameterDump,
+		IdVstSetParameterDump,
+		IdVstProgramNames,
+		IdVstCurrentProgram,
+		IdVstCurrentProgramName,
+		IdVstSetProgram,
+		IdVstRotateProgram,
+		IdVstIdleUpdate,
+
+		// remoteVstPlugin -> vstPlugin
+		IdVstFailedLoadingPlugin,
+		IdVstBadDllFormat,
+		IdVstPluginWindowID,
+		IdVstPluginEditorGeometry,
+		IdVstPluginName,
+		IdVstPluginVersion,
+		IdVstPluginVendorString,
+		IdVstPluginProductString,
+		IdVstPluginPresetsString,
+		IdVstPluginUniqueID,
+		IdVstSetParameter,
+		IdVstParameterCount,
+		IdVstParameterDump
+
+	};
+
 	VstClientSlim(int32_t key_in, int32_t key_out);
 	~VstClientSlim();
 
 	VstSyncData* QtVstShm();
 
+	//------------------------ Plugin information ------------------------------
 	std::string PluginName();
 	std::string PluginVendor();
 	std::string PluginProduct();
 	std::string Version();
-
+	//--------------------------------------------------------------------------
+	//-------------------------- Message routines ------------------------------
 	int SendMessage(const message& m);
 	message RecieveMessage();
 	message WaitForMessage(const message& m, bool busyWaiting = false);
 	message FetchAndProcessNextMessage();
 	void Invalidate();
-
 	bool ProcessMessage(const message& m);
-
+	//--------------------------------------------------------------------------
+	//---------------------- Audio & MIDI processing ---------------------------
 	void ProcessAudio(float** in, float** out);
 	void ProcessMidiEvent(const MidiEvent&, int32_t);
-
-	float* Memory();
-	
+	//--------------------------------------------------------------------------
+	//----------------------- Buses & buffers ----------------------------------
 	void UpdateBufferSize() const;
 	uint32_t SampleRate() const;
 	int16_t BufferSize() const;
@@ -77,6 +114,16 @@ public:
 	int OutputCount() const;
 	void OutputCount(int n);
 	void SetIOCount(int input, int output);
+	//--------------------------------------------------------------------------
+	//--------------------------- Thread sync ----------------------------------
+	inline bool Lock() { _m.lock(); }
+	inline void Unlock() { _m.unlock(); }
+	std::mutex& GetMutex() { return _m; }
+	//--------------------------------------------------------------------------
+	//------------------------- Parameters -------------------------------------
+	void SetParameters(const message& m);
+	message DumpParameters();
+	//--------------------------------------------------------------------------
 
 	bool LoadPlugin(const std::string& path);
 	bool UnloadPlugin();
@@ -85,6 +132,7 @@ public:
 
 	bool IsInitialized() const;
 
+	float* Memory();
 	std::shared_ptr<const shmFifo> In() const { return _in; }
 	std::shared_ptr<const shmFifo> Out() const { return _out; }
 private:
@@ -104,9 +152,11 @@ private:
 	ScopedPointer<AudioPluginInstance> _plugin;
 	ScopedPointer<AudioPluginFormat> _plugin_format;
 	MidiBuffer _midi_buffer;
-	std::vector<MidiEvent> _midi_events;
 	PluginDescription _description;
+
 	bool _loaded;
+	// lock this only when processing audio or read&write parameters.
+	std::mutex _m;
 
 	std::shared_ptr<shmFifo> _in;
 	std::shared_ptr<shmFifo> _out;

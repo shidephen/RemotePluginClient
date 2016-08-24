@@ -235,7 +235,6 @@ struct message
 
 	int id;
 
-private:
 	std::vector<std::string> data;
 };
 
