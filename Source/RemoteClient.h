@@ -13,6 +13,7 @@
 #include <cstdint>
 #include "Communication.h"
 #include <memory>
+#include <vector>
 #include "VstSyncData.h"
 #include "MidiEvent.h"
 #include "JuceHeader.h"
@@ -50,6 +51,11 @@ public:
 
 	VstSyncData* QtVstShm();
 
+	std::string PluginName();
+	std::string PluginVendor();
+	std::string PluginProduct();
+	std::string Version();
+
 	int SendMessage(const message& m);
 	message RecieveMessage();
 	message WaitForMessage(const message& m, bool busyWaiting = false);
@@ -58,7 +64,7 @@ public:
 
 	bool ProcessMessage(const message& m);
 
-	void ProcessAudio(const float** in, float** out);
+	void ProcessAudio(float** in, float** out);
 	void ProcessMidiEvent(const MidiEvent&, int32_t);
 
 	float* Memory();
@@ -70,7 +76,14 @@ public:
 	void InputCount(int n);
 	int OutputCount() const;
 	void OutputCount(int n);
+	void SetIOCount(int input, int output);
 
+	bool LoadPlugin(const std::string& path);
+	bool UnloadPlugin();
+
+	void OpenEditor();
+
+	bool IsInitialized() const;
 
 	std::shared_ptr<const shmFifo> In() const { return _in; }
 	std::shared_ptr<const shmFifo> Out() const { return _out; }
@@ -89,6 +102,10 @@ private:
 	int16_t _buffer_size;
 
 	ScopedPointer<AudioPluginInstance> _plugin;
+	ScopedPointer<AudioPluginFormat> _plugin_format;
+	std::vector<MidiEvent> _midi_events;
+	PluginDescription _description;
+	bool _loaded;
 
 	std::shared_ptr<shmFifo> _in;
 	std::shared_ptr<shmFifo> _out;
