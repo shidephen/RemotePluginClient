@@ -24,7 +24,10 @@ public:
 	};
 
 	SystemSemaphore() = delete;
-	explicit SystemSemaphore(const std::string& key, int initialValue = 0, AccessMode mode = Open);
+	explicit SystemSemaphore(
+		const std::string& key,
+		int initialValue = 0,
+		AccessMode mode = Open);
 	~SystemSemaphore();
 
 	void Key(const std::string& key, int initValue = 0, AccessMode mode = Open);
@@ -200,17 +203,13 @@ struct message
 
 	message & addInt(int _i)
 	{
-		char buf[32];
-		sprintf(buf, "%d", _i);
-		data.push_back(std::string(buf));
+		data.push_back(std::to_string(_i));
 		return *this;
 	}
 
 	message & addFloat(float _f)
 	{
-		char buf[32];
-		sprintf(buf, "%f", _f);
-		data.push_back(std::string(buf));
+		data.push_back(std::to_string(_f));
 		return *this;
 	}
 
@@ -221,12 +220,12 @@ struct message
 
 	inline int getInt(int _p = 0) const
 	{
-		return atoi(data[_p].c_str());
+		return std::stoi(data[_p]);
 	}
 
 	inline float getFloat(int _p) const
 	{
-		return (float)atof(data[_p].c_str());
+		return std::stof(data[_p]);
 	}
 
 	inline bool operator==(const message & _m) const

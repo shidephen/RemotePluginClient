@@ -5,6 +5,15 @@
               jucerVersion="4.2.3">
   <MAINGROUP id="nm7tGi" name="RemotePluginClient">
     <GROUP id="{FE207EB4-510E-67CF-9641-4DBA94D83A69}" name="Source">
+      <FILE id="IUTeHe" name="Midi.h" compile="0" resource="0" file="Source/Midi.h"/>
+      <FILE id="hgT0c4" name="MidiEvent.h" compile="0" resource="0" file="Source/MidiEvent.h"/>
+      <FILE id="PRuZS9" name="panning_constants.h" compile="0" resource="0"
+            file="Source/panning_constants.h"/>
+      <FILE id="wi85Bu" name="volume.h" compile="0" resource="0" file="Source/volume.h"/>
+      <FILE id="K0Z2wL" name="VstSyncData.h" compile="0" resource="0" file="Source/VstSyncData.h"/>
+      <FILE id="HdxnoJ" name="RemoteClient.cpp" compile="1" resource="0"
+            file="Source/RemoteClient.cpp"/>
+      <FILE id="DzVekz" name="RemoteClient.h" compile="0" resource="0" file="Source/RemoteClient.h"/>
       <FILE id="baLrMF" name="Communication.cpp" compile="1" resource="0"
             file="Source/Communication.cpp"/>
       <FILE id="AO3PDx" name="Communication.h" compile="0" resource="0" file="Source/Communication.h"/>
@@ -17,10 +26,14 @@
     <VS2015 targetFolder="Builds/VisualStudio2015" vstFolder="" vst3Folder=""
             IPPLibrary="true">
       <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
-                       isDebug="1" optimisation="1" targetName="RemotePluginClient"/>
-        <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
-                       isDebug="0" optimisation="3" targetName="RemotePluginClient"/>
+        <CONFIGURATION name="Debug(32bit)" winWarningLevel="4" generateManifest="1"
+                       winArchitecture="32-bit" isDebug="1" optimisation="1" targetName="RemotePluginClient32"/>
+        <CONFIGURATION name="Release(32bit)" winWarningLevel="4" generateManifest="1"
+                       winArchitecture="32-bit" isDebug="0" optimisation="3" targetName="RemotePluginClient32"/>
+        <CONFIGURATION name="Debug(64bit)" winWarningLevel="4" generateManifest="1"
+                       winArchitecture="x64" isDebug="1" optimisation="1" targetName="RemotePluginClient"/>
+        <CONFIGURATION name="Release(64bit)" winWarningLevel="4" generateManifest="1"
+                       winArchitecture="x64" isDebug="0" optimisation="3" targetName="RemotePluginClient"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_core" path="../JUCE/modules"/>
