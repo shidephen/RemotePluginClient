@@ -103,6 +103,7 @@ private:
 
 	ScopedPointer<AudioPluginInstance> _plugin;
 	ScopedPointer<AudioPluginFormat> _plugin_format;
+	MidiBuffer _midi_buffer;
 	std::vector<MidiEvent> _midi_events;
 	PluginDescription _description;
 	bool _loaded;

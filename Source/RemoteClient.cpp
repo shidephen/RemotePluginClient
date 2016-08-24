@@ -150,6 +150,10 @@ bool VstClientSlim::UnloadPlugin()
 
 void VstClientSlim::OpenEditor()
 {
+	
 	if (_plugin != nullptr)
-		_plugin->createEditorIfNeeded();
+	{
+		AudioProcessorEditor* editor = _plugin->createEditorIfNeeded();
+		editor->toFront(false);
+	}
 }
