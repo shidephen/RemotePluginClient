@@ -414,11 +414,13 @@ bool VstClientSlim::SaveSettingsToFile(const std::string& path)
 	File f(path);
 	if (!f.create())
 		return false;
-
+	
+	bool isFXB = path.find_last_of("fxb") != path.npos;
 	ScopedPointer<FileOutputStream> stream = f.createOutputStream();
 
 	MemoryBlock mem;
-	_plugin->getStateInformation(mem);
+	VSTPluginFormat::saveToFXBFile(_plugin, mem, isFXB);
+	//_plugin->getStateInformation(mem);
 	size_t size = mem.getSize();
 
 	stream->write(mem.getData(), size);
@@ -432,12 +434,14 @@ bool VstClientSlim::LoadSettingsFromFile(const std::string& path)
 	if (!f.existsAsFile())
 		return false;
 
+	bool isFXB = path.find_last_of("fxb") != path.npos;
 	ScopedPointer<FileInputStream> stream = f.createInputStream();
 	MemoryBlock mem;
 
 	size_t size = stream->readIntoMemoryBlock(mem);
 
-	_plugin->setStateInformation(mem.getData(), size);
+	VSTPluginFormat::loadFromFXBFile(_plugin, mem.getData(), size);
+	// _plugin->setStateInformation(mem.getData(), size);
 }
 
 void VstClientSlim::SetProgram(int program)
