@@ -160,13 +160,13 @@ bool VstClientSlim::ProcessMessage(const message& m)
 		break;
 
 	case IdSaveSettingsToFile:
-		SaveSettingsToFile(m.getString());
+		SaveChuckToFile(m.getString());
 		needReplied = true;
 		reply = message(IdSaveSettingsToFile);
 		break;
 
 	case IdLoadSettingsFromFile:
-		LoadSettingsFromFile(m.getString());
+		LoadChuckFromFile(m.getString());
 		needReplied = true;
 		reply = message(IdLoadSettingsFromFile);
 		break;
@@ -442,6 +442,37 @@ bool VstClientSlim::LoadSettingsFromFile(const std::string& path)
 
 	VSTPluginFormat::loadFromFXBFile(_plugin, mem.getData(), size);
 	// _plugin->setStateInformation(mem.getData(), size);
+}
+
+bool VstClientSlim::SaveChuckToFile(const std::string& path)
+{
+	File f(path);
+	if (!f.create())
+		return false;
+
+	ScopedPointer<FileOutputStream> stream = f.createOutputStream();
+
+	MemoryBlock mem;
+	VSTPluginFormat::getChunkData(_plugin, mem, true);
+	size_t size = mem.getSize();
+
+	stream->write(mem.getData(), size);
+
+	stream->flush();
+}
+
+bool VstClientSlim::LoadChuckFromFile(const std::string& path)
+{
+	File f(path);
+	if (!f.existsAsFile())
+		return false;
+
+	ScopedPointer<FileInputStream> stream = f.createInputStream();
+	MemoryBlock mem;
+
+	size_t size = stream->readIntoMemoryBlock(mem);
+
+	VSTPluginFormat::setChunkData(_plugin, mem.getData(), size, true);
 }
 
 void VstClientSlim::SetProgram(int program)

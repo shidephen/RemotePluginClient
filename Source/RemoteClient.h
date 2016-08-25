@@ -66,6 +66,8 @@ public:
 	message DumpParameters();
 	bool SaveSettingsToFile(const std::string& path);
 	bool LoadSettingsFromFile(const std::string& path);
+	bool SaveChuckToFile(const std::string& path);
+	bool LoadChuckFromFile(const std::string& path);
 	//--------------------------------------------------------------------------
 	//---------------------------- Program -------------------------------------
 	void SetProgram(int program);
