@@ -22,66 +22,7 @@
 class VstClientSlim
 {
 public:
-	enum RemoteMessageIDs
-	{
-		IdUndefined,
-		IdInitDone,
-		IdQuit,
-		IdSampleRateInformation,
-		IdBufferSizeInformation,
-		IdMidiEvent,
-		IdStartProcessing,
-		IdProcessingDone,
-		IdChangeSharedMemoryKey,
-		IdChangeInputCount,
-		IdChangeOutputCount,
-		IdShowUI,
-		IdHideUI,
-		IdSaveSettingsToString,
-		IdSaveSettingsToFile,
-		IdLoadSettingsFromString,
-		IdLoadSettingsFromFile,
-		IdSavePresetFile,
-		IdLoadPresetFile,
-		IdDebugMessage,
-		IdUserBase = 64
-	};
-
-	enum VstRemoteMessageIDs
-	{
-		// vstPlugin -> remoteVstPlugin
-		IdVstLoadPlugin = IdUserBase,
-		IdVstPluginWindowInformation,
-		IdVstClosePlugin,
-		IdVstSetTempo,
-		IdVstSetLanguage,
-		IdVstGetParameterCount,
-		IdVstGetParameterDump,
-		IdVstSetParameterDump,
-		IdVstProgramNames,
-		IdVstCurrentProgram,
-		IdVstCurrentProgramName,
-		IdVstSetProgram,
-		IdVstRotateProgram,
-		IdVstIdleUpdate,
-
-		// remoteVstPlugin -> vstPlugin
-		IdVstFailedLoadingPlugin,
-		IdVstBadDllFormat,
-		IdVstPluginWindowID,
-		IdVstPluginEditorGeometry,
-		IdVstPluginName,
-		IdVstPluginVersion,
-		IdVstPluginVendorString,
-		IdVstPluginProductString,
-		IdVstPluginPresetsString,
-		IdVstPluginUniqueID,
-		IdVstSetParameter,
-		IdVstParameterCount,
-		IdVstParameterDump
-
-	};
-
+	
 	VstClientSlim(int32_t key_in, int32_t key_out);
 	~VstClientSlim();
 
@@ -102,16 +43,16 @@ public:
 	bool ProcessMessage(const message& m);
 	//--------------------------------------------------------------------------
 	//---------------------- Audio & MIDI processing ---------------------------
-	void ProcessAudio(float** in, float** out);
+	void ProcessAudio(float* &buffer);
 	void ProcessMidiEvent(const MidiEvent&, int32_t);
 	//--------------------------------------------------------------------------
 	//----------------------- Buses & buffers ----------------------------------
 	void UpdateBufferSize() const;
-	uint32_t SampleRate() const;
-	int16_t BufferSize() const;
-	int InputCount() const;
+	uint32_t SampleRate() const { return _sample_rate; };
+	int16_t BufferSize() const { return _buffer_size; };
+	int InputCount() const { return _plugin->getTotalNumInputChannels(); };
 	void InputCount(int n);
-	int OutputCount() const;
+	int OutputCount() const { return _plugin->getTotalNumInputChannels(); };
 	void OutputCount(int n);
 	void SetIOCount(int input, int output);
 	//--------------------------------------------------------------------------
@@ -123,20 +64,29 @@ public:
 	//------------------------- Parameters -------------------------------------
 	void SetParameters(const message& m);
 	message DumpParameters();
+	bool SaveSettingsToFile(const std::string& path);
+	bool LoadSettingsFromFile(const std::string& path);
+	//--------------------------------------------------------------------------
+	//---------------------------- Program -------------------------------------
+	void SetProgram(int program);
+	int GetCurrentProgram() const { return _plugin->getCurrentProgram(); };
+	void RotateProgram(int offset);
+	std::string GetProgramNames();
 	//--------------------------------------------------------------------------
 
 	bool LoadPlugin(const std::string& path);
 	bool UnloadPlugin();
 
 	void OpenEditor();
+	void HideEditor();
 
-	bool IsInitialized() const;
+	bool IsInitialized() const { return _loaded; };
 
 	float* Memory();
 	std::shared_ptr<const shmFifo> In() const { return _in; }
 	std::shared_ptr<const shmFifo> Out() const { return _out; }
 private:
-	void _SetShmKey(int32_t key, size_t size);
+	void _SetShmKey(int32_t key);
 	void _DoProcessing();
 
 	SharedMemory _shmObj;
@@ -148,6 +98,7 @@ private:
 	size_t _output_count;
 	uint32_t _sample_rate;
 	int16_t _buffer_size;
+	uint16_t _bpm;
 
 	ScopedPointer<AudioPluginInstance> _plugin;
 	ScopedPointer<AudioPluginFormat> _plugin_format;
@@ -155,6 +106,8 @@ private:
 	PluginDescription _description;
 
 	bool _loaded;
+
+	VstHostLanguages _language = LanguageEnglish;
 	// lock this only when processing audio or read&write parameters.
 	std::mutex _m;
 

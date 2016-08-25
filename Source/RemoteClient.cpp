@@ -10,11 +10,14 @@
 
 #include "RemoteClient.h"
 #include <cassert>
+#include <cmath>
+#include <sstream>
 
 using namespace std;
 
 VstClientSlim::VstClientSlim(int32_t key_in, int32_t key_out)
 {
+	// TODO: Initialize
 	_plugin_format = new VSTPluginFormat();
 }
 
@@ -119,15 +122,114 @@ bool VstClientSlim::ProcessMessage(const message& m)
 	}
 
 	case IdStartProcessing:
-		doProcessing();
+		_DoProcessing();
 		reply.id = IdProcessingDone;
 		needReplied = true;
 		break;
 
 	case IdChangeSharedMemoryKey:
+		// TODO: 
 		break;
 
 	case IdInitDone:
+		break;
+
+	case IdVstLoadPlugin:
+		LoadPlugin(m.getString());
+		break;
+
+	case IdVstPluginWindowInformation:
+		break;
+
+	case IdVstSetTempo:
+		_bpm = m.getInt();
+		break;
+
+	case IdVstSetLanguage:
+		_language = static_cast<VstHostLanguages>(m.getInt());
+		
+		break;
+
+	case IdVstGetParameterDump:
+		reply = DumpParameters();
+		needReplied = true;
+		break;
+
+	case IdVstSetParameterDump:
+		SetParameters(m);
+		break;
+
+	case IdSaveSettingsToFile:
+		SaveSettingsToFile(m.getString());
+		needReplied = true;
+		reply = message(IdSaveSettingsToFile);
+		break;
+
+	case IdLoadSettingsFromFile:
+		LoadSettingsFromFile(m.getString());
+		needReplied = true;
+		reply = message(IdLoadSettingsFromFile);
+		break;
+
+	case IdLoadPresetFile:
+		LoadSettingsFromFile(m.getString());
+		needReplied = true;
+		reply = message(IdLoadPresetFile);
+		break;
+
+	case IdSavePresetFile:
+		SaveSettingsToFile(m.getString());
+		needReplied = true;
+		reply = message(IdSavePresetFile);
+		break;
+
+	case IdVstSetProgram:
+		SetProgram(m.getInt(0));
+		reply = message(IdVstSetProgram);
+		needReplied = true;
+		// sendCurrentProgramName
+		break;
+
+	case IdVstCurrentProgram:
+		reply = message(IdVstCurrentProgram);
+		reply.addInt(GetCurrentProgram());
+		needReplied = true;
+		break;
+
+	case IdVstRotateProgram:
+		RotateProgram(m.getInt(0));
+		needReplied = true;
+		reply = message(IdVstRotateProgram);
+		// sendCurrentProgramName
+		break;
+
+	case IdVstProgramNames:
+		reply = message(IdVstProgramNames).addString(GetProgramNames());
+		needReplied = true;
+		break;
+
+	case IdVstSetParameter:
+	{
+		lock_guard<mutex> lock(_m);
+		_plugin->setParameterNotifyingHost(m.getInt(0), m.getFloat(1));
+		break;
+	}
+
+	case IdVstIdleUpdate:
+		// TODO: Vst Idle
+		// int newCurrentProgram = pluginDispatch( effGetProgram );
+// 		if (newCurrentProgram != m_currentProgram)
+// 		{
+// 			m_currentProgram = newCurrentProgram;
+// 			sendCurrentProgramName();
+// 		}
+		break;
+
+	case IdShowUI:
+		OpenEditor();
+		break;
+	case IdHideUI:
+		HideEditor();
 		break;
 	default:
 		break;
@@ -139,15 +241,16 @@ bool VstClientSlim::ProcessMessage(const message& m)
 	return true;
 }
 
-void VstClientSlim::ProcessAudio(float** in, float** out)
+void VstClientSlim::ProcessAudio(float* &shm)
 {
 	if (_plugin != nullptr)
 	{
 		lock_guard<mutex> lock(_m);
 		AudioSampleBuffer buffer;
 		buffer.setDataToReferTo(
-			in,
-			_plugin->getNumInputChannels(),
+			&shm,
+			_plugin->getTotalNumInputChannels() 
+			+ _plugin->getTotalNumOutputChannels(),
 			_plugin->getBlockSize());
 
 		_plugin->processBlock(buffer, _midi_buffer);
@@ -178,10 +281,10 @@ void VstClientSlim::ProcessMidiEvent(const MidiEvent& event, int32_t offset)
 			event.velocity());
 		break;
 	case MidiKeyPressure:
-		// Todo
+		// Todo: MidiKeyPressure
 		break;
 	case MidiControlChange:
-		// TODO
+		// TODO: MidiControlChange
 		break;
 	case MidiProgramChange:
 		message = MidiMessage::programChange(
@@ -194,28 +297,28 @@ void VstClientSlim::ProcessMidiEvent(const MidiEvent& event, int32_t offset)
 			event.channelPressure());
 		break;
 	case MidiSysEx:
-		// TODO
+		// TODO: MidiSysEx
 		break;
 	case MidiTimeCode:
-		// TODO
+		// TODO: MidiTimeCode
 		break;
 	case MidiSongPosition:
-		// TODO
+		// TODO: MidiSongPosition
 		break;
 	case MidiSongSelect:
-		// TODO
+		// TODO: MidiSongSelect
 		break;
 	case MidiTuneRequest:
-		// TODO
+		// TODO: MidiTuneRequest
 		break;
 	case MidiEOX:
-		// TODO
+		// TODO: MidiEOX
 		break;
 	case MidiSync:
-		// TODO
+		// TODO: MidiSync
 		break;
 	case MidiTick:
-		// TODO
+		// TODO: MidiTick
 		break;
 	case MidiStart:
 		message = MidiMessage::midiStart();
@@ -227,15 +330,41 @@ void VstClientSlim::ProcessMidiEvent(const MidiEvent& event, int32_t offset)
 		message = MidiMessage::midiStop();
 		break;
 	case MidiActiveSensing:
-		// TODO
+		// TODO: MidiActiveSensing
 		break;
 	case MidiSystemReset:
-		// TODO
+		// TODO: MidiSystemReset
 		break;
 	default:
 		break;
 	}
 	_midi_buffer.addEvent(message, offset);
+}
+
+inline void VstClientSlim::UpdateBufferSize() const
+{
+	_plugin->setPlayConfigDetails(
+		InputCount(), 
+		OutputCount(),
+		_sample_rate, 
+		_buffer_size);
+}
+
+inline void VstClientSlim::InputCount(int n)
+{
+	int output = OutputCount();
+	SetIOCount(n, output);
+}
+
+inline void VstClientSlim::OutputCount(int n)
+{
+	int input = InputCount();
+	SetIOCount(input, n);
+}
+
+inline void VstClientSlim::SetIOCount(int input, int output)
+{
+	_plugin->setPlayConfigDetails(input, output, _sample_rate, _buffer_size);
 }
 
 void VstClientSlim::SetParameters(const message& m)
@@ -250,7 +379,7 @@ void VstClientSlim::SetParameters(const message& m)
 
 	for (size_t p = 0, i = 0; i < params; ++i)
 	{
-		int index = m.getInt(++p);
+		int index = m.getInt(++p);  
 		string label = m.getString(++p);
 		float value = m.getFloat(++p);
 		_plugin->setParameter(index, value);
@@ -278,6 +407,84 @@ message VstClientSlim::DumpParameters()
 	}
 
 	return m;
+}
+
+bool VstClientSlim::SaveSettingsToFile(const std::string& path)
+{
+	File f(path);
+	if (!f.create())
+		return false;
+
+	ScopedPointer<FileOutputStream> stream = f.createOutputStream();
+
+	MemoryBlock mem;
+	_plugin->getStateInformation(mem);
+	size_t size = mem.getSize();
+
+	stream->write(mem.getData(), size);
+
+	stream->flush();
+}
+
+bool VstClientSlim::LoadSettingsFromFile(const std::string& path)
+{
+	File f(path);
+	if (!f.existsAsFile())
+		return false;
+
+	ScopedPointer<FileInputStream> stream = f.createInputStream();
+	MemoryBlock mem;
+
+	size_t size = stream->readIntoMemoryBlock(mem);
+
+	_plugin->setStateInformation(mem.getData(), size);
+}
+
+void VstClientSlim::SetProgram(int program)
+{
+	if (!IsInitialized())
+		return;
+
+	if (program < 0)
+		program = 0;
+	if (program >= _plugin->getNumPrograms())
+		program = _plugin->getNumPrograms() - 1;
+
+	_plugin->setCurrentProgram(program);
+}
+
+void VstClientSlim::RotateProgram(int offset)
+{
+	if (!IsInitialized())
+		return;
+
+	int newProgram = GetCurrentProgram() + offset;
+
+	SetProgram(newProgram);
+}
+
+std::string VstClientSlim::GetProgramNames()
+{
+	if (!IsInitialized())
+		return "";
+
+	size_t progNum = _plugin->getNumPrograms();
+	progNum = progNum >= 256 ? 256 : progNum;
+
+	if (progNum <= 1)
+		return _plugin->getProgramName(
+			_plugin->getCurrentProgram()).toStdString();
+
+	ostringstream fmt;
+
+	for (size_t i = 0; i < progNum; ++i)
+	{
+		String name = _plugin->getProgramName(i);
+		if (i == 0) fmt << name.toStdString();
+		else fmt << '|' << name.toStdString();
+	}
+
+	return fmt.str();
 }
 
 bool VstClientSlim::LoadPlugin(const std::string& path)
@@ -323,6 +530,32 @@ void VstClientSlim::OpenEditor()
 	if (_plugin != nullptr)
 	{
 		AudioProcessorEditor* editor = _plugin->createEditorIfNeeded();
+		editor->setVisible(true);
 		editor->toFront(false);
 	}
+}
+
+void VstClientSlim::HideEditor()
+{
+	if (_plugin != nullptr && _plugin->hasEditor())
+	{
+		_plugin->getActiveEditor()->setVisible(false);
+	}
+}
+
+void VstClientSlim::_SetShmKey(int32_t key)
+{
+	_shmObj.Key(to_string(key));
+	if (_shmObj.Attach())
+		_shm = (float*)_shmObj.Data();
+	else
+		_shm = nullptr;
+}
+
+void VstClientSlim::_DoProcessing()
+{
+	if (_shm == nullptr)
+		return;
+
+	ProcessAudio(_shm);
 }

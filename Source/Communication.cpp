@@ -306,10 +306,12 @@ inline size_t SharedMemory::Size() const
 
 bool SharedMemory::Attach(AccessMode mode /*= ReadWrite*/)
 {
-	if (_handle <= 0)
+	if (IsAttached() || !_InitKey())
 		return false;
 
-	if (IsAttached() || !_InitKey())
+	_handle = _aquire_handle();
+
+	if (_handle <= 0)
 		return false;
 
 	if (!_key.empty() && !_semaphore.Acquire())

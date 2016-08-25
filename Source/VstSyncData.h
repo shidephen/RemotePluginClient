@@ -37,6 +37,76 @@
 #define VST_SNC_SHM_KEY_FILE "/dev/null"
 //#define VST_SNC_SHM_RND_KEY 3561653564469
 
+enum VstHostLanguages
+{
+	LanguageEnglish = 1,
+	LanguageGerman,
+	LanguageFrench,
+	LanguageItalian,
+	LanguageSpanish,
+	LanguageJapanese,
+	LanguageKorean
+};
+
+enum RemoteMessageIDs
+{
+	IdUndefined,
+	IdInitDone,
+	IdQuit,
+	IdSampleRateInformation,
+	IdBufferSizeInformation,
+	IdMidiEvent,
+	IdStartProcessing,
+	IdProcessingDone,
+	IdChangeSharedMemoryKey,
+	IdChangeInputCount,
+	IdChangeOutputCount,
+	IdShowUI,
+	IdHideUI,
+	IdSaveSettingsToString,
+	IdSaveSettingsToFile,
+	IdLoadSettingsFromString,
+	IdLoadSettingsFromFile,
+	IdSavePresetFile,
+	IdLoadPresetFile,
+	IdDebugMessage,
+	IdUserBase = 64
+};
+
+enum VstRemoteMessageIDs
+{
+	// vstPlugin -> remoteVstPlugin
+	IdVstLoadPlugin = IdUserBase,
+	IdVstPluginWindowInformation,
+	IdVstClosePlugin,
+	IdVstSetTempo,
+	IdVstSetLanguage,
+	IdVstGetParameterCount,
+	IdVstGetParameterDump,
+	IdVstSetParameterDump,
+	IdVstProgramNames,
+	IdVstCurrentProgram,
+	IdVstCurrentProgramName,
+	IdVstSetProgram,
+	IdVstRotateProgram,
+	IdVstIdleUpdate,
+
+	// remoteVstPlugin -> vstPlugin
+	IdVstFailedLoadingPlugin,
+	IdVstBadDllFormat,
+	IdVstPluginWindowID,
+	IdVstPluginEditorGeometry,
+	IdVstPluginName,
+	IdVstPluginVersion,
+	IdVstPluginVendorString,
+	IdVstPluginProductString,
+	IdVstPluginPresetsString,
+	IdVstPluginUniqueID,
+	IdVstSetParameter,
+	IdVstParameterCount,
+	IdVstParameterDump
+
+};
 
 
 struct VstSyncData
