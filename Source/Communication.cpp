@@ -222,7 +222,7 @@ void SharedMemory::_release_handle()
 }
 
 SharedMemory::SharedMemory(const std::string& key)
-	: _semaphore(key)
+	: _semaphore(key), _key("")
 {
 	Key(key);
 }
