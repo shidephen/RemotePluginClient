@@ -5,6 +5,8 @@
               jucerVersion="4.2.3">
   <MAINGROUP id="nm7tGi" name="RemotePluginClient">
     <GROUP id="{FE207EB4-510E-67CF-9641-4DBA94D83A69}" name="Source">
+      <FILE id="dHy2Pr" name="Threads.cpp" compile="1" resource="0" file="Source/Threads.cpp"/>
+      <FILE id="QDlNpI" name="Threads.h" compile="0" resource="0" file="Source/Threads.h"/>
       <FILE id="IUTeHe" name="Midi.h" compile="0" resource="0" file="Source/Midi.h"/>
       <FILE id="hgT0c4" name="MidiEvent.h" compile="0" resource="0" file="Source/MidiEvent.h"/>
       <FILE id="PRuZS9" name="panning_constants.h" compile="0" resource="0"
@@ -28,10 +30,10 @@
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug(32bit)" winWarningLevel="4" generateManifest="1"
                        winArchitecture="32-bit" isDebug="1" optimisation="1" targetName="RemotePluginClient32"/>
-        <CONFIGURATION name="Release(32bit)" winWarningLevel="4" generateManifest="1"
-                       winArchitecture="32-bit" isDebug="0" optimisation="3" targetName="RemotePluginClient32"/>
         <CONFIGURATION name="Debug(64bit)" winWarningLevel="4" generateManifest="1"
                        winArchitecture="x64" isDebug="1" optimisation="1" targetName="RemotePluginClient"/>
+        <CONFIGURATION name="Release(32bit)" winWarningLevel="4" generateManifest="1"
+                       winArchitecture="32-bit" isDebug="0" optimisation="3" targetName="RemotePluginClient32"/>
         <CONFIGURATION name="Release(64bit)" winWarningLevel="4" generateManifest="1"
                        winArchitecture="x64" isDebug="0" optimisation="3" targetName="RemotePluginClient"/>
       </CONFIGURATIONS>
