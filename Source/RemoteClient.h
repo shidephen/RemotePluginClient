@@ -28,7 +28,9 @@ public:
 	VstClientSlim(int32_t key_in, int32_t key_out);
 	~VstClientSlim();
 
-	VstSyncData* QtVstShm();
+	VstSyncData* QtVstShm() const {
+		return _vstSyncData;
+	};
 
 	//------------------------ Plugin information ------------------------------
 	std::string PluginName() const { 
@@ -44,6 +46,9 @@ public:
 		return "1";
 	};
 	//--------------------------------------------------------------------------
+
+	void DoProcessing();
+
 	//-------------------------- Message routines ------------------------------
 	int SendMessage(const message& m);
 	message RecieveMessage();
@@ -52,25 +57,13 @@ public:
 	void Invalidate();
 	bool ProcessMessage(const message& m);
 	//--------------------------------------------------------------------------
-	//---------------------- Audio & MIDI processing ---------------------------
-	void ProcessAudio(float* &buffer);
-	void ProcessMidiEvent(const MidiEvent&, int32_t);
-	//--------------------------------------------------------------------------
-	//----------------------- Buses & buffers ----------------------------------
-	void UpdateBufferSize() const;
-	uint32_t SampleRate() const { return _sample_rate; };
-	int16_t BufferSize() const { return _buffer_size; };
-	int InputCount() const { return _plugin->getTotalNumInputChannels(); };
-	void InputCount(int n);
-	int OutputCount() const { return _plugin->getTotalNumInputChannels(); };
-	void OutputCount(int n);
-	void SetIOCount(int input, int output);
-	//--------------------------------------------------------------------------
+	
 	//--------------------------- Thread sync ----------------------------------
 	inline bool Lock() { _m.lock(); }
 	inline void Unlock() { _m.unlock(); }
 	std::mutex& GetMutex() { return _m; }
 	//--------------------------------------------------------------------------
+	
 	//------------------------- Parameters -------------------------------------
 	void SetParameters(const message& m);
 	message DumpParameters();
@@ -79,12 +72,9 @@ public:
 	bool SaveChuckToFile(const std::string& path);
 	bool LoadChuckFromFile(const std::string& path);
 	//--------------------------------------------------------------------------
-	//---------------------------- Program -------------------------------------
-	void SetProgram(int program);
-	int GetCurrentProgram() const { return _plugin->getCurrentProgram(); };
-	void RotateProgram(int offset);
-	std::string GetProgramNames();
-	//--------------------------------------------------------------------------
+
+	uint32_t SampleRate() const { return _sample_rate; };
+	int16_t BufferSize() const { return _buffer_size; };
 
 	bool LoadPlugin(const std::string& path);
 	bool UnloadPlugin();
@@ -94,13 +84,10 @@ public:
 
 	bool IsInitialized() const { return _loaded; };
 
-	float* Memory();
 	std::shared_ptr<const shmFifo> In() const { return _in; }
 	std::shared_ptr<const shmFifo> Out() const { return _out; }
-private:
-	void _SetShmKey(int32_t key);
-	void _DoProcessing();
 
+	//----------------------- Override -----------------------------------------
 	virtual int64 getTempoAt(int64 samplePos) override;
 
 	virtual int getAutomationState() override;
@@ -111,9 +98,33 @@ private:
 		float newValue) override;
 
 	virtual void audioProcessorChanged(AudioProcessor* processor) override;
+	//--------------------------------------------------------------------------
+
+private:
+	//---------------------- Audio & MIDI processing ---------------------------
+	void _ProcessAudio(float* &buffer);
+	void _ProcessMidiEvent(const MidiEvent&, int32_t);
+	//--------------------------------------------------------------------------
+
+	//----------------------- Buses & buffers ----------------------------------
+	void _UpdateBufferSize() const;
+	int _InputCount() const { return _plugin->getTotalNumInputChannels(); };
+	void _InputCount(int n);
+	int _OutputCount() const { return _plugin->getTotalNumInputChannels(); };
+	void _OutputCount(int n);
+	void _SetIOCount(int input, int output);
+	//--------------------------------------------------------------------------
+	
+	//---------------------------- Program -------------------------------------
+	void _SetProgram(int program);
+	int _GetCurrentProgram() const { return _plugin->getCurrentProgram(); };
+	void _RotateProgram(int offset);
+	std::string _GetProgramNames();
+	//--------------------------------------------------------------------------
+
+	void _SetShmKey(int32_t key);
 
 	SharedMemory _shmObj;
-	SharedMemory _shmQtId;
 	VstSyncData* _vstSyncData;
 
 	float* _shm;
@@ -136,6 +147,8 @@ private:
 
 	std::shared_ptr<shmFifo> _in;
 	std::shared_ptr<shmFifo> _out;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VstClientSlim);
 };
 
 #endif  // REMOTECLIENT_H_INCLUDED

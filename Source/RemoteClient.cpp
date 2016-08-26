@@ -16,6 +16,10 @@
 using namespace std;
 
 VstClientSlim::VstClientSlim(int32_t key_in, int32_t key_out)
+	: _in(new shmFifo(key_in)), _out(new shmFifo(key_out)),
+	_shmObj(""), _vstSyncData(nullptr), _shm(nullptr), _bpm(0),
+	_sample_rate(44100), _buffer_size(512), _old_input_count(0),
+	_old_output_count(0), _loaded(false)
 {
 	// TODO: Initialize
 	_plugin_format = new VSTPluginFormat();
@@ -102,12 +106,12 @@ bool VstClientSlim::ProcessMessage(const message& m)
 
 	case IdSampleRateInformation:
 		_sample_rate = m.getInt();
-		UpdateBufferSize();
+		_UpdateBufferSize();
 		break;
 
 	case IdBufferSizeInformation:
 		_buffer_size = m.getInt();
-		UpdateBufferSize();
+		_UpdateBufferSize();
 		break;
 
 	case IdMidiEvent:
@@ -116,13 +120,13 @@ bool VstClientSlim::ProcessMessage(const message& m)
 			static_cast<MidiEventTypes>(m.getInt(0)),
 			m.getInt(1), m.getInt(2), m.getInt(3));
 
-		ProcessMidiEvent(e, m.getInt(4));
+		_ProcessMidiEvent(e, m.getInt(4));
 
 		break;
 	}
 
 	case IdStartProcessing:
-		_DoProcessing();
+		DoProcessing();
 		reply.id = IdProcessingDone;
 		needReplied = true;
 		break;
@@ -184,7 +188,7 @@ bool VstClientSlim::ProcessMessage(const message& m)
 		break;
 
 	case IdVstSetProgram:
-		SetProgram(m.getInt(0));
+		_SetProgram(m.getInt(0));
 		reply = message(IdVstSetProgram);
 		needReplied = true;
 		// sendCurrentProgramName
@@ -192,19 +196,19 @@ bool VstClientSlim::ProcessMessage(const message& m)
 
 	case IdVstCurrentProgram:
 		reply = message(IdVstCurrentProgram);
-		reply.addInt(GetCurrentProgram());
+		reply.addInt(_GetCurrentProgram());
 		needReplied = true;
 		break;
 
 	case IdVstRotateProgram:
-		RotateProgram(m.getInt(0));
+		_RotateProgram(m.getInt(0));
 		needReplied = true;
 		reply = message(IdVstRotateProgram);
 		// sendCurrentProgramName
 		break;
 
 	case IdVstProgramNames:
-		reply = message(IdVstProgramNames).addString(GetProgramNames());
+		reply = message(IdVstProgramNames).addString(_GetProgramNames());
 		needReplied = true;
 		break;
 
@@ -241,7 +245,7 @@ bool VstClientSlim::ProcessMessage(const message& m)
 	return true;
 }
 
-void VstClientSlim::ProcessAudio(float* &shm)
+void VstClientSlim::_ProcessAudio(float* &shm)
 {
 	if (_plugin != nullptr)
 	{
@@ -260,7 +264,7 @@ void VstClientSlim::ProcessAudio(float* &shm)
 	}
 }
 
-void VstClientSlim::ProcessMidiEvent(const MidiEvent& event, int32_t offset)
+void VstClientSlim::_ProcessMidiEvent(const MidiEvent& event, int32_t offset)
 {
 	MidiMessage message;
 	auto channel = event.channel();
@@ -344,28 +348,28 @@ void VstClientSlim::ProcessMidiEvent(const MidiEvent& event, int32_t offset)
 	_midi_buffer.addEvent(message, offset);
 }
 
-inline void VstClientSlim::UpdateBufferSize() const
+inline void VstClientSlim::_UpdateBufferSize() const
 {
 	_plugin->setPlayConfigDetails(
-		InputCount(), 
-		OutputCount(),
+		_InputCount(), 
+		_OutputCount(),
 		_sample_rate, 
 		_buffer_size);
 }
 
-inline void VstClientSlim::InputCount(int n)
+inline void VstClientSlim::_InputCount(int n)
 {
-	int output = OutputCount();
-	SetIOCount(n, output);
+	int output = _OutputCount();
+	_SetIOCount(n, output);
 }
 
-inline void VstClientSlim::OutputCount(int n)
+inline void VstClientSlim::_OutputCount(int n)
 {
-	int input = InputCount();
-	SetIOCount(input, n);
+	int input = _InputCount();
+	_SetIOCount(input, n);
 }
 
-inline void VstClientSlim::SetIOCount(int input, int output)
+inline void VstClientSlim::_SetIOCount(int input, int output)
 {
 	_plugin->setPlayConfigDetails(input, output, _sample_rate, _buffer_size);
 }
@@ -437,7 +441,6 @@ bool VstClientSlim::LoadSettingsFromFile(const std::string& path)
 	if (!f.existsAsFile())
 		return false;
 
-	bool isFXB = path.find_last_of("fxb") != path.npos;
 	ScopedPointer<FileInputStream> stream = f.createInputStream();
 	MemoryBlock mem;
 
@@ -478,7 +481,7 @@ bool VstClientSlim::LoadChuckFromFile(const std::string& path)
 	VSTPluginFormat::setChunkData(_plugin, mem.getData(), size, true);
 }
 
-void VstClientSlim::SetProgram(int program)
+void VstClientSlim::_SetProgram(int program)
 {
 	if (!IsInitialized())
 		return;
@@ -491,17 +494,17 @@ void VstClientSlim::SetProgram(int program)
 	_plugin->setCurrentProgram(program);
 }
 
-void VstClientSlim::RotateProgram(int offset)
+void VstClientSlim::_RotateProgram(int offset)
 {
 	if (!IsInitialized())
 		return;
 
-	int newProgram = GetCurrentProgram() + offset;
+	int newProgram = _GetCurrentProgram() + offset;
 
-	SetProgram(newProgram);
+	_SetProgram(newProgram);
 }
 
-std::string VstClientSlim::GetProgramNames()
+std::string VstClientSlim::_GetProgramNames()
 {
 	if (!IsInitialized())
 		return "";
@@ -592,12 +595,12 @@ void VstClientSlim::_SetShmKey(int32_t key)
 		_shm = nullptr;
 }
 
-void VstClientSlim::_DoProcessing()
+void VstClientSlim::DoProcessing()
 {
 	if (_shm == nullptr)
 		return;
 
-	ProcessAudio(_shm);
+	_ProcessAudio(_shm);
 }
 
 int64 VstClientSlim::getTempoAt(int64 samplePos)
@@ -620,17 +623,22 @@ void VstClientSlim::audioProcessorParameterChanged(AudioProcessor* processor, in
 
 void VstClientSlim::audioProcessorChanged(AudioProcessor* processor)
 {
-	if (_old_input_count != InputCount())
+	if (_old_input_count != _InputCount())
 	{
-		_old_input_count = InputCount();
+		_old_input_count = _InputCount();
 		SendMessage(message(IdChangeInputCount)
 			.addInt(processor->getTotalNumInputChannels()));
 	}
 	
-	if (_old_output_count != OutputCount())
+	if (_old_output_count != _OutputCount())
 	{
-		_old_output_count = OutputCount();
+		_old_output_count = _OutputCount();
 		SendMessage(message(IdChangeOutputCount)
 			.addInt(processor->getTotalNumOutputChannels()));
 	}
+}
+
+VstClientSlim::~VstClientSlim()
+{
+	UnloadPlugin();
 }
