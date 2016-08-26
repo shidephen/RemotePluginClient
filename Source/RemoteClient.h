@@ -19,7 +19,9 @@
 #include "MidiEvent.h"
 #include "JuceHeader.h"
 
-class VstClientSlim
+class VstClientSlim 
+	: VSTPluginFormat::ExtraFunctions,
+	AudioProcessorListener
 {
 public:
 	
@@ -29,10 +31,18 @@ public:
 	VstSyncData* QtVstShm();
 
 	//------------------------ Plugin information ------------------------------
-	std::string PluginName();
-	std::string PluginVendor();
-	std::string PluginProduct();
-	std::string Version();
+	std::string PluginName() const { 
+		return _plugin->getName().toStdString(); 
+	};
+	std::string PluginVendor() const {
+		return "TUYA";
+	};
+	std::string PluginProduct() const {
+		return "Unkown";
+	};
+	std::string Version() const {
+		return "1";
+	};
 	//--------------------------------------------------------------------------
 	//-------------------------- Message routines ------------------------------
 	int SendMessage(const message& m);
@@ -91,13 +101,24 @@ private:
 	void _SetShmKey(int32_t key);
 	void _DoProcessing();
 
+	virtual int64 getTempoAt(int64 samplePos) override;
+
+	virtual int getAutomationState() override;
+
+	virtual void audioProcessorParameterChanged(
+		AudioProcessor* processor,
+		int parameterIndex,
+		float newValue) override;
+
+	virtual void audioProcessorChanged(AudioProcessor* processor) override;
+
 	SharedMemory _shmObj;
 	SharedMemory _shmQtId;
 	VstSyncData* _vstSyncData;
 
 	float* _shm;
-	size_t _input_count;
-	size_t _output_count;
+	size_t _old_input_count;
+	size_t _old_output_count;
 	uint32_t _sample_rate;
 	int16_t _buffer_size;
 	uint16_t _bpm;

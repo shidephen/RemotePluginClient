@@ -211,7 +211,7 @@ bool VstClientSlim::ProcessMessage(const message& m)
 	case IdVstSetParameter:
 	{
 		lock_guard<mutex> lock(_m);
-		_plugin->setParameterNotifyingHost(m.getInt(0), m.getFloat(1));
+		_plugin->setParameter(m.getInt(0), m.getFloat(1));
 		break;
 	}
 
@@ -246,6 +246,9 @@ void VstClientSlim::ProcessAudio(float* &shm)
 	if (_plugin != nullptr)
 	{
 		lock_guard<mutex> lock(_m);
+
+		_plugin->prepareToPlay(_sample_rate, _buffer_size);
+
 		AudioSampleBuffer buffer;
 		buffer.setDataToReferTo(
 			&shm,
@@ -545,6 +548,8 @@ bool VstClientSlim::LoadPlugin(const std::string& path)
 		return false;
 	}
 
+	VSTPluginFormat::setExtraFunctions(_plugin, this);
+
 	return true;
 }
 
@@ -593,4 +598,39 @@ void VstClientSlim::_DoProcessing()
 		return;
 
 	ProcessAudio(_shm);
+}
+
+int64 VstClientSlim::getTempoAt(int64 samplePos)
+{
+	return _bpm * 10000;
+}
+
+int VstClientSlim::getAutomationState()
+{
+	/** This should return the host's automation state.
+	@returns 0 = not supported, 1 = off, 2 = read, 3 = write, 4 = read/write
+	*/
+	return 4;
+}
+
+void VstClientSlim::audioProcessorParameterChanged(AudioProcessor* processor, int parameterIndex, float newValue)
+{
+	processor->setParameter(parameterIndex, newValue);
+}
+
+void VstClientSlim::audioProcessorChanged(AudioProcessor* processor)
+{
+	if (_old_input_count != InputCount())
+	{
+		_old_input_count = InputCount();
+		SendMessage(message(IdChangeInputCount)
+			.addInt(processor->getTotalNumInputChannels()));
+	}
+	
+	if (_old_output_count != OutputCount())
+	{
+		_old_output_count = OutputCount();
+		SendMessage(message(IdChangeOutputCount)
+			.addInt(processor->getTotalNumOutputChannels()));
+	}
 }
