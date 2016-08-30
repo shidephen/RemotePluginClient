@@ -115,7 +115,7 @@ HANDLE SystemSemaphore::_aquire_handle()
 
 void SystemSemaphore::_release_handle()
 {
-	if (_semaphore_handle > 0)
+	if (_semaphore_handle >= 0)
 		CloseHandle(_semaphore_handle);
 
 	_semaphore_handle = 0;
@@ -124,6 +124,7 @@ void SystemSemaphore::_release_handle()
 SystemSemaphore::SystemSemaphore(const std::string& key,
 								int initialValue /*= 0*/,
 								AccessMode mode /*= Open*/)
+	: _semaphore_handle(0), _value(0), _key(""), _native_key("")
 {
 	Key(key, initialValue, mode);
 }
@@ -222,7 +223,8 @@ void SharedMemory::_release_handle()
 }
 
 SharedMemory::SharedMemory(const std::string& key)
-	: _semaphore(key), _key("")
+	: _semaphore(key), _key(""), _handle(0), _last_error(ERROR_SUCCESS),
+	_native_key(""), _size(0), _locked_by_me(false), _memory(nullptr)
 {
 	Key(key);
 }
@@ -468,7 +470,7 @@ shmFifo::~shmFifo()
 
 }
 
-inline bool shmFifo::isInvalid() const
+bool shmFifo::isInvalid() const
 {
 	return m_invalid;
 }
@@ -485,7 +487,7 @@ inline bool shmFifo::isMaster() const
 }
 
 // recursive lock
-inline void shmFifo::lock()
+void shmFifo::lock()
 {
 	if (!isInvalid() && InterlockedAdd(&m_lockDepth, 1) == 1)
 	{
@@ -494,7 +496,7 @@ inline void shmFifo::lock()
 }
 
 // recursive unlock
-inline void shmFifo::unlock()
+void shmFifo::unlock()
 {
 	if (InterlockedAddAcquire(&m_lockDepth, -1) <= 0)
 	{
@@ -503,7 +505,7 @@ inline void shmFifo::unlock()
 }
 
 // wait until message-semaphore is available
-inline void shmFifo::waitForMessage()
+void shmFifo::waitForMessage()
 {
 	if (!isInvalid())
 	{
@@ -512,25 +514,25 @@ inline void shmFifo::waitForMessage()
 }
 
 // increase message-semaphore
-inline void shmFifo::messageSent()
+void shmFifo::messageSent()
 {
 	m_messageSem.Release();
 }
 
 
-inline int32_t shmFifo::readInt()
+int32_t shmFifo::readInt()
 {
 	int32_t i;
 	read(&i, sizeof(i));
 	return i;
 }
 
-inline void shmFifo::writeInt(const int32_t & _i)
+void shmFifo::writeInt(const int32_t & _i)
 {
 	write(&_i, sizeof(_i));
 }
 
-inline std::string shmFifo::readString()
+std::string shmFifo::readString()
 {
 	const int len = readInt();
 	if (len)
@@ -546,7 +548,7 @@ inline std::string shmFifo::readString()
 }
 
 
-inline void shmFifo::writeString(const std::string & _s)
+void shmFifo::writeString(const std::string & _s)
 {
 	const int len = _s.size();
 	writeInt(len);
@@ -554,7 +556,7 @@ inline void shmFifo::writeString(const std::string & _s)
 }
 
 
-inline bool shmFifo::messagesLeft()
+bool shmFifo::messagesLeft()
 {
 	if (isInvalid())
 	{
@@ -567,12 +569,12 @@ inline bool shmFifo::messagesLeft()
 }
 
 
-inline int shmFifo::shmKey() const
+int shmFifo::shmKey() const
 {
 	return m_shmKey;
 }
 
-inline void shmFifo::fastMemCpy(void * _dest, const void * _src,
+void shmFifo::fastMemCpy(void * _dest, const void * _src,
 	const int _len)
 {
 	// calling memcpy() for just an integer is obsolete overhead
