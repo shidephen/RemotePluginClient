@@ -11,12 +11,12 @@
 #ifndef REMOTECLIENT_H_INCLUDED
 #define REMOTECLIENT_H_INCLUDED
 #include <cstdint>
-#include "Communication.h"
 #include <memory>
 #include <mutex>
 #include <vector>
 #include "VstSyncData.h"
 #include "MidiEvent.h"
+#include "Communication.h"
 #include "JuceHeader.h"
 
 class VstClientSlim 

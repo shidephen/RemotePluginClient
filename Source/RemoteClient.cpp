@@ -433,6 +433,8 @@ bool VstClientSlim::SaveSettingsToFile(const std::string& path)
 	stream->write(mem.getData(), size);
 
 	stream->flush();
+
+	return true;
 }
 
 bool VstClientSlim::LoadSettingsFromFile(const std::string& path)
@@ -448,6 +450,8 @@ bool VstClientSlim::LoadSettingsFromFile(const std::string& path)
 
 	VSTPluginFormat::loadFromFXBFile(_plugin, mem.getData(), size);
 	// _plugin->setStateInformation(mem.getData(), size);
+
+	return true;
 }
 
 bool VstClientSlim::SaveChuckToFile(const std::string& path)
@@ -465,6 +469,8 @@ bool VstClientSlim::SaveChuckToFile(const std::string& path)
 	stream->write(mem.getData(), size);
 
 	stream->flush();
+
+	return true;
 }
 
 bool VstClientSlim::LoadChuckFromFile(const std::string& path)
@@ -479,6 +485,8 @@ bool VstClientSlim::LoadChuckFromFile(const std::string& path)
 	size_t size = stream->readIntoMemoryBlock(mem);
 
 	VSTPluginFormat::setChunkData(_plugin, mem.getData(), size, true);
+
+	return true;
 }
 
 void VstClientSlim::_SetProgram(int program)
@@ -564,7 +572,10 @@ bool VstClientSlim::UnloadPlugin()
 			_plugin->getActiveEditor()->userTriedToCloseWindow();
 
 		_plugin = nullptr;
+		return true;
 	}
+
+	return false;
 }
 
 void VstClientSlim::OpenEditor()
@@ -621,6 +632,7 @@ void VstClientSlim::audioProcessorParameterChanged(AudioProcessor* processor, in
 	processor->setParameter(parameterIndex, newValue);
 }
 
+// UNDONE: 此处是插件IO变化通知LMMS，即实现host callback，原实现也是LMMS不主动控制IO
 void VstClientSlim::audioProcessorChanged(AudioProcessor* processor)
 {
 	if (_old_input_count != _InputCount())
