@@ -23,7 +23,7 @@ std::condition_variable cond;
 std::vector<message> queue;
 volatile bool will_exit = false;
 
-int WinMain(
+int WINAPI WinMain(
 	_In_ HINSTANCE hInstance,
 	_In_opt_ HINSTANCE hPrevInstance,
 	_In_ LPSTR lpCmdLine,

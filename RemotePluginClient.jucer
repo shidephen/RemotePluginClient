@@ -19,8 +19,6 @@
       <FILE id="baLrMF" name="Communication.cpp" compile="1" resource="0"
             file="Source/Communication.cpp"/>
       <FILE id="AO3PDx" name="Communication.h" compile="0" resource="0" file="Source/Communication.h"/>
-      <FILE id="NaEAjI" name="MainComponent.cpp" compile="1" resource="0"
-            file="Source/MainComponent.cpp"/>
       <FILE id="nkQHhk" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
     </GROUP>
   </MAINGROUP>
@@ -28,14 +26,13 @@
     <VS2015 targetFolder="Builds/VisualStudio2015" vstFolder="" vst3Folder=""
             IPPLibrary="true">
       <CONFIGURATIONS>
-        <CONFIGURATION name="Debug(32bit)" winWarningLevel="4" generateManifest="1"
-                       winArchitecture="32-bit" isDebug="1" optimisation="1" targetName="RemotePluginClient32"/>
-        <CONFIGURATION name="Debug(64bit)" winWarningLevel="4" generateManifest="1"
-                       winArchitecture="x64" isDebug="1" optimisation="1" targetName="RemotePluginClient"/>
-        <CONFIGURATION name="Release(32bit)" winWarningLevel="4" generateManifest="1"
-                       winArchitecture="32-bit" isDebug="0" optimisation="3" targetName="RemotePluginClient32"/>
-        <CONFIGURATION name="Release(64bit)" winWarningLevel="4" generateManifest="1"
-                       winArchitecture="x64" isDebug="0" optimisation="3" targetName="RemotePluginClient"/>
+        <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
+                       isDebug="1" optimisation="1" targetName="RemotePluginClient"/>
+        <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
+                       isDebug="0" optimisation="3" targetName="RemotePluginClient"/>
+        <CONFIGURATION name="Test" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
+                       isDebug="1" optimisation="1" targetName="RemotePluginClient"
+                       fastMath="0"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_core" path="../JUCE/modules"/>
