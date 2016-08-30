@@ -9,93 +9,80 @@
 */
 
 #include "../JuceLibraryCode/JuceHeader.h"
+#include "RemoteClient.h"
+#include "Threads.h"
+#include <iostream>
+#include <memory>
+#include <string>
+#include <sstream>
 
-Component* createMainContentComponent();
+using namespace std;
 
-//==============================================================================
-class RemotePluginClientApplication  : public JUCEApplication
+std::mutex mu;
+std::condition_variable cond;
+std::vector<message> queue;
+volatile bool will_exit = false;
+
+int WinMain(
+	_In_ HINSTANCE hInstance,
+	_In_opt_ HINSTANCE hPrevInstance,
+	_In_ LPSTR lpCmdLine,
+	_In_ int nShowCmd)
 {
-public:
-    //==============================================================================
-    RemotePluginClientApplication() {}
+	UNREFERENCED_PARAMETER(hInstance);
+	UNREFERENCED_PARAMETER(hPrevInstance);
+	UNREFERENCED_PARAMETER(nShowCmd);
 
-    const String getApplicationName() override       { return ProjectInfo::projectName; }
-    const String getApplicationVersion() override    { return ProjectInfo::versionString; }
-    bool moreThanOneInstanceAllowed() override       { return true; }
+	ScopedJuceInitialiser_GUI initializer;
 
-    //==============================================================================
-    void initialise (const String& commandLine) override
-    {
-        // This method is where you should put your application's initialisation code..
+	SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
 
-        mainWindow = new MainWindow (getApplicationName());
-    }
+	istringstream cmd_in(lpCmdLine);
+	string param;
+	int num_in, num_out;
 
-    void shutdown() override
-    {
-        // Add your application's shutdown code here..
+	if (!getline(cmd_in, param, ' '))
+	{
+		cout << "Read 1st param error." << endl;
+		return EXIT_FAILURE;
+	}
+	num_in = stoi(param);
 
-        mainWindow = nullptr; // (deletes our window)
-    }
+	if (!getline(cmd_in, param, ' '))
+	{
+		cout << "Read 2nd param error." << endl;
+		return EXIT_FAILURE;
+	}
+	num_out = stoi(param);
 
-    //==============================================================================
-    void systemRequestedQuit() override
-    {
-        // This is called when the app is being asked to quit: you can ignore this
-        // request and let the app carry on running, or call quit() to allow the app to close.
-        quit();
-    }
+	ScopedPointer<VstClientSlim> client = new VstClientSlim(num_in, num_out);
 
-    void anotherInstanceStarted (const String& commandLine) override
-    {
-        // When another instance of the app is launched while this one is running,
-        // this method is invoked, and the commandLine parameter tells you what
-        // the other instance's command-line arguments were.
-    }
+	LMMSMonitorThread monitor_thread(will_exit);
+	ProcessingThread process_thread(*client, mu, cond, queue);
+	monitor_thread.startThread();
+	process_thread.startThread(7);
 
-    //==============================================================================
-    /*
-        This class implements the desktop window that contains an instance of
-        our MainContentComponent class.
-    */
-    class MainWindow    : public DocumentWindow
-    {
-    public:
-        MainWindow (String name)  : DocumentWindow (name,
-                                                    Colours::lightgrey,
-                                                    DocumentWindow::allButtons)
-        {
-            setUsingNativeTitleBar (true);
-            setContentOwned (createMainContentComponent(), true);
-            setResizable (true, true);
+	while (will_exit)
+	{
+		message m = client->RecieveMessage();
+		if (m.id == IdStartProcessing)
+		{
+			// this will notify processing thread that 
+			// there are data to process.
+			lock_guard<mutex> lock(mu);
+			queue.push_back(m);
+			cond.notify_one();
+		}
+		else
+		{
+			will_exit = client->ProcessMessage(m);
+		}
+	}
 
-            centreWithSize (getWidth(), getHeight());
-            setVisible (true);
-        }
+	process_thread.signalThreadShouldExit();
+	monitor_thread.signalThreadShouldExit();
+	monitor_thread.waitForThreadToExit(1000);
+	process_thread.waitForThreadToExit(10000); // wait for 10s to exit.
 
-        void closeButtonPressed() override
-        {
-            // This is called when the user tries to close this window. Here, we'll just
-            // ask the app to quit when this happens, but you can change this to do
-            // whatever you need.
-            JUCEApplication::getInstance()->systemRequestedQuit();
-        }
-
-        /* Note: Be careful if you override any DocumentWindow methods - the base
-           class uses a lot of them, so by overriding you might break its functionality.
-           It's best to do all your work in your content component instead, but if
-           you really have to override any DocumentWindow methods, make sure your
-           subclass also calls the superclass's method.
-        */
-
-    private:
-        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainWindow)
-    };
-
-private:
-    ScopedPointer<MainWindow> mainWindow;
-};
-
-//==============================================================================
-// This macro generates the main() routine that launches the app.
-START_JUCE_APPLICATION (RemotePluginClientApplication)
+	return EXIT_SUCCESS;
+}
