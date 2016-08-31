@@ -115,7 +115,7 @@ HANDLE SystemSemaphore::_aquire_handle()
 
 void SystemSemaphore::_release_handle()
 {
-	if (_semaphore_handle >= 0)
+	if (_semaphore_handle > 0)
 		CloseHandle(_semaphore_handle);
 
 	_semaphore_handle = 0;
@@ -134,7 +134,7 @@ SystemSemaphore::~SystemSemaphore()
 	_release_handle();
 }
 
-inline void SystemSemaphore::Key(
+void SystemSemaphore::Key(
 	const std::string& key,
 	int initValue /* = 0 */,
 	AccessMode mode /* = Open */)
@@ -148,18 +148,18 @@ inline void SystemSemaphore::Key(
 	_semaphore_handle = _aquire_handle();
 }
 
-inline std::string SystemSemaphore::Key() const
+std::string SystemSemaphore::Key() const
 {
 	return _key;
 }
 
-inline void SystemSemaphore::NativeKey(const std::string& nativeKey)
+void SystemSemaphore::NativeKey(const std::string& nativeKey)
 {
 	_native_key = nativeKey;
 	_semaphore_handle = _aquire_handle();
 }
 
-inline std::string SystemSemaphore::NativeKey() const
+std::string SystemSemaphore::NativeKey() const
 {
 	return _native_key;
 }
@@ -202,7 +202,7 @@ bool SharedMemory::_InitKey()
 
 HANDLE SharedMemory::_aquire_handle()
 {
-	if (_handle <= 0)
+	if (_handle < 0)
 		return 0;
 
 	_handle = OpenFileMapping(FILE_MAP_ALL_ACCESS, false, _native_key.c_str());
@@ -247,7 +247,7 @@ void SharedMemory::Key(const std::string& key)
 	_native_key = make_platform_key(prefix, key);
 }
 
-inline std::string SharedMemory::Key() const
+std::string SharedMemory::Key() const
 {
 	return _key;
 }
@@ -265,7 +265,7 @@ void SharedMemory::NativeKey(const std::string& nativeKey)
 	_native_key = nativeKey;
 }
 
-inline std::string SharedMemory::NativeKey() const
+std::string SharedMemory::NativeKey() const
 {
 	return _native_key;
 }
@@ -301,7 +301,7 @@ bool SharedMemory::Create(size_t size, AccessMode mode /*= ReadWrite*/)
 	return true;
 }
 
-inline size_t SharedMemory::Size() const
+size_t SharedMemory::Size() const
 {
 	return _size;
 }
@@ -345,7 +345,7 @@ bool SharedMemory::Attach(AccessMode mode /*= ReadWrite*/)
 
 bool SharedMemory::IsAttached() const
 {
-	return _memory != NULL;
+	return _memory != nullptr;
 }
 
 bool SharedMemory::Detach()
@@ -363,7 +363,7 @@ bool SharedMemory::Detach()
 		return false;
 	}
 
-	_memory = NULL;
+	_memory = nullptr;
 	_size = 0;
 
 	_release_handle();
@@ -371,12 +371,12 @@ bool SharedMemory::Detach()
 	return _semaphore.Release();
 }
 
-inline void* SharedMemory::Data()
+void* SharedMemory::Data()
 {
 	return _memory;
 }
 
-inline const void* SharedMemory::ConstData() const
+const void* SharedMemory::ConstData() const
 {
 	return _memory;
 }

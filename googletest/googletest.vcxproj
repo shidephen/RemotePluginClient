@@ -21,7 +21,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{5E401702-20F3-48FB-94EA-5149A1031A28}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>googletest</RootNamespace>
+    <RootNamespace>gtest</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
     <ProjectName>gtest</ProjectName>
   </PropertyGroup>

@@ -68,30 +68,37 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LibraryPath>$(ProjectDir)..\googletest\lib;E:\Projects\RemotePluginClient\lib;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LibraryPath>$(ProjectDir)..\googletest\lib;E:\Projects\RemotePluginClient\lib;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\googletest\include;$(ProjectDir)..\Source;$(ProjectDir)..\JuceLibraryCode;$(ProjectDir)..\JuceLibraryCode\modules;E:\Projects\VST3 SDK;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\googletest\include;$(ProjectDir)..\Source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\googletest\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>gtest.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>gtest.lib;RemotePluginClient32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <SDLCheck>true</SDLCheck>
+      <SDLCheck>false</SDLCheck>
       <AdditionalIncludeDirectories>$(ProjectDir)..\googletest\include;$(ProjectDir)..\Source;$(ProjectDir)..\JuceLibraryCode;$(ProjectDir)..\JuceLibraryCode\modules;E:\Projects\VST3 SDK;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\googletest\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>gtest.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>gtest.lib;RemotePluginClient.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -127,40 +134,17 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\JuceLibraryCode\juce_audio_basics.cpp" />
-    <ClCompile Include="..\JuceLibraryCode\juce_audio_devices.cpp" />
-    <ClCompile Include="..\JuceLibraryCode\juce_audio_formats.cpp" />
-    <ClCompile Include="..\JuceLibraryCode\juce_audio_processors.cpp" />
-    <ClCompile Include="..\JuceLibraryCode\juce_audio_utils.cpp" />
-    <ClCompile Include="..\JuceLibraryCode\juce_core.cpp" />
-    <ClCompile Include="..\JuceLibraryCode\juce_data_structures.cpp" />
-    <ClCompile Include="..\JuceLibraryCode\juce_events.cpp" />
-    <ClCompile Include="..\JuceLibraryCode\juce_graphics.cpp" />
-    <ClCompile Include="..\JuceLibraryCode\juce_gui_basics.cpp" />
-    <ClCompile Include="..\JuceLibraryCode\juce_gui_extra.cpp" />
-    <ClCompile Include="..\Source\Communication.cpp" />
-    <ClCompile Include="..\Source\RemoteClient.cpp" />
-    <ClCompile Include="..\Source\Threads.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="SemaphoreTest.cpp" />
     <ClCompile Include="SharedMemoryTest.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Builds\VisualStudio2015\RemotePluginClient.vcxproj">
+      <Project>{11156ca5-5641-339e-3bfe-77ab69267221}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\googletest\googletest.vcxproj">
       <Project>{5e401702-20f3-48fb-94ea-5149a1031a28}</Project>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\JuceLibraryCode\AppConfig.h" />
-    <ClInclude Include="..\JuceLibraryCode\JuceHeader.h" />
-    <ClInclude Include="..\Source\Communication.h" />
-    <ClInclude Include="..\Source\Midi.h" />
-    <ClInclude Include="..\Source\MidiEvent.h" />
-    <ClInclude Include="..\Source\panning_constants.h" />
-    <ClInclude Include="..\Source\RemoteClient.h" />
-    <ClInclude Include="..\Source\Threads.h" />
-    <ClInclude Include="..\Source\volume.h" />
-    <ClInclude Include="..\Source\VstSyncData.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

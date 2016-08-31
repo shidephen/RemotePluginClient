@@ -14,6 +14,11 @@
 #include <vector>
 #include <windows.h>
 
+static std::string 
+make_platform_key(
+	const std::string& prefix, 
+	const std::string& key);
+
 class SystemSemaphore
 {
 public:
