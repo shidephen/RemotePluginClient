@@ -138,24 +138,24 @@ public:
 	//--------------------------------------------------------------------------
 
 	//---------------------- Audio & MIDI processing ---------------------------
-	void _ProcessAudio(float* &buffer);
-	void _ProcessMidiEvent(const MidiEvent&, int32_t);
+	void ProcessAudio(float* &buffer);
+	void ProcessMidiEvent(const MidiEvent&, int32_t);
 	//--------------------------------------------------------------------------
 
 	//----------------------- Buses & buffers ----------------------------------
-	void _UpdateBufferSize() const;
-	int _InputCount() const { return _plugin->getTotalNumInputChannels(); };
-	void _InputCount(int n);
-	int _OutputCount() const { return _plugin->getTotalNumInputChannels(); };
-	void _OutputCount(int n);
-	void _SetIOCount(int input, int output);
+	void UpdateBufferSize() const;
+	int InputCount() const { return _plugin->getTotalNumInputChannels(); };
+	void InputCount(int n);
+	int OutputCount() const { return _plugin->getTotalNumInputChannels(); };
+	void OutputCount(int n);
+	void SetIOCount(int input, int output);
 	//--------------------------------------------------------------------------
 	
 	//---------------------------- Program -------------------------------------
-	void _SetProgram(int program);
-	int _GetCurrentProgram() const { return _plugin->getCurrentProgram(); };
-	void _RotateProgram(int offset);
-	std::string _GetProgramNames();
+	void SetProgram(int program);
+	int GetCurrentProgram() const { return _plugin->getCurrentProgram(); };
+	void RotateProgram(int offset);
+	std::string GetProgramNames();
 	//--------------------------------------------------------------------------
 
 private:
