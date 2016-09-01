@@ -96,19 +96,33 @@ string make_platform_key(const string& prefix, const string& key)
 //======================== SystemSemaphore methods =============================
 const char* SystemSemaphore::prefix = "qipc_systemsem_";
 
-HANDLE SystemSemaphore::_aquire_handle()
+HANDLE SystemSemaphore::_aquire_handle(AccessMode mode)
 {
 	if (_key.empty())
 		return 0;
 
-	if (_semaphore_handle <= 0)
-		_semaphore_handle = 
-		CreateSemaphoreEx(NULL,					// security attribute
-						_value,					// initial value
-						MAXLONG,				// max value
-						_native_key.c_str(),	// filename
-						0,						//flags
-						SEMAPHORE_ALL_ACCESS);	// access
+	if (_semaphore_handle > 0)
+		return _semaphore_handle;
+
+	if (mode == AccessMode::Create)
+	{
+		_semaphore_handle =
+			CreateSemaphoreEx(
+				NULL,					// security attribute
+				_value,					// initial value
+				MAXLONG,				// max value
+				_native_key.c_str(),	// filename
+				0,						//flags
+				SEMAPHORE_ALL_ACCESS);	// access
+	}
+	else if(mode == AccessMode::Open)
+	{
+		_semaphore_handle = OpenSemaphore(
+			SEMAPHORE_ALL_ACCESS,
+			false,
+			_native_key.c_str()
+		);
+	}
 
 	return _semaphore_handle;
 }
@@ -123,7 +137,7 @@ void SystemSemaphore::_release_handle()
 
 SystemSemaphore::SystemSemaphore(const std::string& key,
 								int initialValue /*= 0*/,
-								AccessMode mode /*= Open*/)
+								AccessMode mode /*= Create*/)
 	: _semaphore_handle(0), _value(0), _key(""), _native_key("")
 {
 	Key(key, initialValue, mode);
@@ -137,7 +151,7 @@ SystemSemaphore::~SystemSemaphore()
 void SystemSemaphore::Key(
 	const std::string& key,
 	int initValue /* = 0 */,
-	AccessMode mode /* = Open */)
+	AccessMode mode /* = Create */)
 {
 	_release_handle();
 
@@ -145,7 +159,8 @@ void SystemSemaphore::Key(
 	_native_key = make_platform_key(prefix, key);
 	_value = initValue;
 
-	_semaphore_handle = _aquire_handle();
+	_semaphore_handle = _aquire_handle(mode);
+	_last_error = GetLastError();
 }
 
 std::string SystemSemaphore::Key() const
@@ -157,6 +172,7 @@ void SystemSemaphore::NativeKey(const std::string& nativeKey)
 {
 	_native_key = nativeKey;
 	_semaphore_handle = _aquire_handle();
+	_last_error = GetLastError();
 }
 
 std::string SystemSemaphore::NativeKey() const
@@ -170,19 +186,27 @@ bool SystemSemaphore::Acquire()
 		return false;
 
 	if (WAIT_OBJECT_0 != WaitForSingleObjectEx(
-							_semaphore_handle,
-							INFINITE,
-							FALSE))
+		_semaphore_handle,
+		INFINITE,
+		FALSE))
+	{
+		_last_error = GetLastError();
 		return false;
+	}
 
+	_last_error = GetLastError();
 	return true;
 }
 
 bool SystemSemaphore::Release(size_t count /*= 1*/)
 {
 	if (0 == ReleaseSemaphore(_semaphore_handle, count, 0))
+	{
+		_last_error = GetLastError();
 		return false;
+	}
 
+	_last_error = GetLastError();
 	return true;
 }
 

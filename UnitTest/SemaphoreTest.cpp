@@ -11,17 +11,20 @@ TEST(SemaphoreTest, TestSetKey)
 	shared_ptr<SystemSemaphore> sem = make_shared<SystemSemaphore>("");
 
 	// default
-	ASSERT_EQ(sem->Key(), ""); 
+	ASSERT_EQ(sem->Key(), "");
+	ASSERT_EQ(sem->Error(), ERROR_SUCCESS);
 	
 	// non-alphabet
 	sem->Key("12");
 	ASSERT_EQ(sem->Key(), "12");
+	ASSERT_EQ(sem->Error(), ERROR_SUCCESS);
 	string key = sem->NativeKey();
 	ASSERT_TRUE(key.find_first_of("qipc_systemsem_") != key.npos);
 
 	// alphabet
 	sem->Key("jazz");
 	ASSERT_EQ(sem->Key(), "jazz");
+	ASSERT_EQ(sem->Error(), ERROR_SUCCESS);
 	key = sem->NativeKey();
 	ASSERT_TRUE(key.find_first_of("qipc_systemsem_jazz") != key.npos);
 }

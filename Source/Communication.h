@@ -32,10 +32,14 @@ public:
 	explicit SystemSemaphore(
 		const std::string& key,
 		int initialValue = 0,
-		AccessMode mode = Open);
+		AccessMode mode = Create);
 	~SystemSemaphore();
 
-	void Key(const std::string& key, int initValue = 0, AccessMode mode = Open);
+	void Key(
+		const std::string& key, 
+		int initValue = 0,
+		AccessMode mode = Create);
+
 	std::string Key() const;
 
 	void NativeKey(const std::string& nativeKey);
@@ -44,16 +48,18 @@ public:
 	bool Acquire();
 	bool Release(size_t count = 1);
 
+	DWORD Error() const { return _last_error; }
+
 private:
 	static const char* prefix;
 	std::string _key;
 	std::string _native_key;
 
-	AccessMode _mode;
 	int _value;
+	DWORD _last_error;
 
 	HANDLE _semaphore_handle;
-	HANDLE _aquire_handle();
+	HANDLE _aquire_handle(AccessMode mode = Create);
 	void _release_handle();
 
 	//noncopyable
