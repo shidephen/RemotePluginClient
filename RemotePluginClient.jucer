@@ -5,6 +5,8 @@
               jucerVersion="4.2.3">
   <MAINGROUP id="nm7tGi" name="RemotePluginClient">
     <GROUP id="{FE207EB4-510E-67CF-9641-4DBA94D83A69}" name="Source">
+      <FILE id="kMkAQy" name="RemoteClientBase.cpp" compile="1" resource="0"
+            file="Source/RemoteClientBase.cpp"/>
       <FILE id="dHy2Pr" name="Threads.cpp" compile="1" resource="0" file="Source/Threads.cpp"/>
       <FILE id="QDlNpI" name="Threads.h" compile="0" resource="0" file="Source/Threads.h"/>
       <FILE id="IUTeHe" name="Midi.h" compile="0" resource="0" file="Source/Midi.h"/>
@@ -13,8 +15,8 @@
             file="Source/panning_constants.h"/>
       <FILE id="wi85Bu" name="volume.h" compile="0" resource="0" file="Source/volume.h"/>
       <FILE id="K0Z2wL" name="VstSyncData.h" compile="0" resource="0" file="Source/VstSyncData.h"/>
-      <FILE id="HdxnoJ" name="RemoteClient.cpp" compile="1" resource="0"
-            file="Source/RemoteClient.cpp"/>
+      <FILE id="HdxnoJ" name="RemoteVstClient.cpp" compile="1" resource="0"
+            file="Source/RemoteVstClient.cpp"/>
       <FILE id="DzVekz" name="RemoteClient.h" compile="0" resource="0" file="Source/RemoteClient.h"/>
       <FILE id="baLrMF" name="Communication.cpp" compile="1" resource="0"
             file="Source/Communication.cpp"/>

@@ -16,80 +16,13 @@
 using namespace std;
 
 VstClientSlim::VstClientSlim(int32_t key_in, int32_t key_out)
-	: _in(new shmFifo(key_in)), _out(new shmFifo(key_out)),
-	_shmObj(""), _vstSyncData(nullptr), _shm(nullptr), _bpm(0),
+	: RemoteClientBase(key_in, key_out),
+	_vstSyncData(nullptr), _bpm(0),
 	_sample_rate(44100), _buffer_size(512), _old_input_count(0),
 	_old_output_count(0), _loaded(false)
 {
 	// TODO: Initialize
 	_plugin_format = new VSTPluginFormat();
-}
-
-int VstClientSlim::SendMessage(const message& m)
-{
-	_out->lock();
-	_out->writeInt(m.id);
-	_out->writeInt(m.data.size());
-	size_t written = 8;
-
-	for (auto i = m.data.begin(); i != m.data.end(); i++)
-	{
-		_out->writeString(*i);
-		// contains a int represent the length of string.
-		written += 4 + i->size();
-	}
-
-	_out->unlock();
-	_out->messageSent();
-
-	return written;
-}
-
-message VstClientSlim::RecieveMessage()
-{
-	_in->waitForMessage();
-	_in->lock();
-
-	message m;
-	m.id = _in->readInt();
-	size_t s = _in->readInt();
-	for (; s-- > 0; m.data.push_back(_in->readString()));
-
-	_in->unlock();
-
-	return m;
-}
-
-message
-VstClientSlim::WaitForMessage(
-	const message& m, 
-	bool busyWaiting /*= false*/)
-{
-	while (_in->isInvalid())
-	{
-		message msg = RecieveMessage();
-		ProcessMessage(msg);
-		if (msg.id == m.id)
-			return msg;
-		else if (msg.id == IdUndefined)
-			return msg;
-	}
-
-	return message();
-}
-
-inline message VstClientSlim::FetchAndProcessNextMessage()
-{
-	message m = RecieveMessage();
-	ProcessMessage(m);
-	return m;
-}
-
-inline void VstClientSlim::Invalidate()
-{
-	_in->invalidate();
-	_out->invalidate();
-	_in->messageSent();
 }
 
 bool VstClientSlim::ProcessMessage(const message& m)
@@ -214,7 +147,7 @@ bool VstClientSlim::ProcessMessage(const message& m)
 
 	case IdVstSetParameter:
 	{
-		lock_guard<mutex> lock(_m);
+		lock_guard<mutex> lock(GetMutex());
 		_plugin->setParameter(m.getInt(0), m.getFloat(1));
 		break;
 	}
@@ -249,7 +182,7 @@ void VstClientSlim::_ProcessAudio(float* &shm)
 {
 	if (_plugin != nullptr)
 	{
-		lock_guard<mutex> lock(_m);
+		lock_guard<mutex> lock(GetMutex());
 
 		_plugin->prepareToPlay(_sample_rate, _buffer_size);
 
@@ -379,7 +312,7 @@ void VstClientSlim::SetParameters(const message& m)
 	if (_plugin == nullptr)
 		return;
 
-	lock_guard<mutex> lock(_m);
+	lock_guard<mutex> lock(GetMutex());
 
 	size_t n = m.getInt(0), params = _plugin->getNumParameters();
 	params = (n > params ? params : n);
@@ -398,7 +331,7 @@ message VstClientSlim::DumpParameters()
 	if (_plugin == nullptr)
 		return message();
 
-	lock_guard<mutex> lock(_m);
+	lock_guard<mutex> lock(GetMutex());
 
 	message m(IdVstParameterDump);
 	size_t nums = _plugin->getNumParameters();
@@ -560,7 +493,7 @@ bool VstClientSlim::LoadPlugin(const std::string& path)
 	}
 
 	VSTPluginFormat::setExtraFunctions(_plugin, this);
-
+	_loaded = true;
 	return true;
 }
 
@@ -572,6 +505,7 @@ bool VstClientSlim::UnloadPlugin()
 			_plugin->getActiveEditor()->userTriedToCloseWindow();
 
 		_plugin = nullptr;
+		_loaded = false;
 		return true;
 	}
 
@@ -597,15 +531,6 @@ void VstClientSlim::HideEditor()
 	}
 }
 
-void VstClientSlim::_SetShmKey(int32_t key)
-{
-	_shmObj.Key(to_string(key));
-	if (_shmObj.Attach())
-		_shm = (float*)_shmObj.Data();
-	else
-		_shm = nullptr;
-}
-
 void VstClientSlim::DoProcessing()
 {
 	if (_shm == nullptr)
@@ -616,6 +541,7 @@ void VstClientSlim::DoProcessing()
 
 int64 VstClientSlim::getTempoAt(int64 samplePos)
 {
+	UNREFERENCED_PARAMETER(samplePos);
 	return _bpm * 10000;
 }
 

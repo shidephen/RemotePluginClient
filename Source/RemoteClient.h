@@ -19,9 +19,57 @@
 #include "Communication.h"
 #include "JuceHeader.h"
 
+class RemoteClientBase
+{
+public:
+	RemoteClientBase(int32_t key_in, int32_t key_out);
+	RemoteClientBase(
+		std::shared_ptr<shmFifo>& shm_in,
+		std::shared_ptr<shmFifo>& shm_out);
+
+	virtual ~RemoteClientBase();
+
+	//-------------------------- Message routines ------------------------------
+	int SendMessage(const message& m);
+	message RecieveMessage();
+	message WaitForMessage(const message& m, bool busyWaiting = false);
+	message FetchAndProcessNextMessage();
+	void Invalidate();
+	virtual bool ProcessMessage(const message& m);
+	//--------------------------------------------------------------------------
+
+	//--------------------------- Thread sync ----------------------------------
+	inline bool Lock() { _m.lock(); }
+	inline void Unlock() { _m.unlock(); }
+	std::mutex& GetMutex() { return _m; }
+	//--------------------------------------------------------------------------
+
+	//---------------------------- IPC -----------------------------------------
+	std::shared_ptr<shmFifo> In() const { return _in; }
+	std::shared_ptr<shmFifo> Out() const { return _out; }
+	//--------------------------------------------------------------------------
+
+protected:
+	float* _shm;
+
+private:
+	void _SetShmKey(int32_t key);
+
+	SharedMemory _shmObj;
+
+	// lock this only when processing audio or read&write parameters.
+	std::mutex _m;
+
+	std::shared_ptr<shmFifo> _in;
+	std::shared_ptr<shmFifo> _out;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RemoteClientBase);
+};
+
 class VstClientSlim 
-	: VSTPluginFormat::ExtraFunctions,
-	AudioProcessorListener
+	:public VSTPluginFormat::ExtraFunctions,
+	public AudioProcessorListener,
+	public RemoteClientBase
 {
 public:
 	
@@ -50,18 +98,7 @@ public:
 	void DoProcessing();
 
 	//-------------------------- Message routines ------------------------------
-	int SendMessage(const message& m);
-	message RecieveMessage();
-	message WaitForMessage(const message& m, bool busyWaiting = false);
-	message FetchAndProcessNextMessage();
-	void Invalidate();
-	bool ProcessMessage(const message& m);
-	//--------------------------------------------------------------------------
-	
-	//--------------------------- Thread sync ----------------------------------
-	inline bool Lock() { _m.lock(); }
-	inline void Unlock() { _m.unlock(); }
-	std::mutex& GetMutex() { return _m; }
+	bool ProcessMessage(const message& m) override;
 	//--------------------------------------------------------------------------
 	
 	//------------------------- Parameters -------------------------------------
@@ -84,9 +121,6 @@ public:
 
 	bool IsInitialized() const { return _loaded; };
 
-	std::shared_ptr<const shmFifo> In() const { return _in; }
-	std::shared_ptr<const shmFifo> Out() const { return _out; }
-
 	//----------------------- Override -----------------------------------------
 	virtual int64 getTempoAt(int64 samplePos) override;
 
@@ -100,7 +134,6 @@ public:
 	virtual void audioProcessorChanged(AudioProcessor* processor) override;
 	//--------------------------------------------------------------------------
 
-private:
 	//---------------------- Audio & MIDI processing ---------------------------
 	void _ProcessAudio(float* &buffer);
 	void _ProcessMidiEvent(const MidiEvent&, int32_t);
@@ -122,12 +155,10 @@ private:
 	std::string _GetProgramNames();
 	//--------------------------------------------------------------------------
 
-	void _SetShmKey(int32_t key);
+private:
 
-	SharedMemory _shmObj;
 	VstSyncData* _vstSyncData;
 
-	float* _shm;
 	size_t _old_input_count;
 	size_t _old_output_count;
 	uint32_t _sample_rate;
@@ -142,12 +173,7 @@ private:
 	bool _loaded;
 
 	VstHostLanguages _language = LanguageEnglish;
-	// lock this only when processing audio or read&write parameters.
-	std::mutex _m;
-
-	std::shared_ptr<shmFifo> _in;
-	std::shared_ptr<shmFifo> _out;
-
+	
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VstClientSlim);
 };
 
