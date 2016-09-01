@@ -8,6 +8,7 @@ TEST(ClientTest, TestConstruction)
 {
 	FakeRemotePlugin server;
 	VstClientSlim vst_client(server.KeyIn(), server.KeyOut());
+	// unload plugin when deconstructed
 }
 
 TEST(ClientTest, TestLoadPlugin)
@@ -55,4 +56,23 @@ TEST(ClientTest, TestSaveLoadSettings)
 
 	EXPECT_TRUE(vst_client.LoadSettingsFromFile(preset_file));
 	f.deleteFile();
+}
+
+TEST(ClientTest, TestBusArrangement)
+{
+	FakeRemotePlugin server;
+	VstClientSlim vst_client(server.KeyIn(), server.KeyOut());
+
+	vst_client.LoadPlugin(
+		"E:\\Projects\\RemotePluginClient\\UnitTest\\Minihost.dll");
+
+	// mono
+	vst_client.SetIOCount(1, 1);
+	ASSERT_EQ(vst_client.InputCount(), 1);
+	ASSERT_EQ(vst_client.OutputCount(), 1);
+
+	// stereo
+	vst_client.SetIOCount(2, 2);
+	ASSERT_EQ(vst_client.InputCount(), 2);
+	ASSERT_EQ(vst_client.OutputCount(), 2);
 }
