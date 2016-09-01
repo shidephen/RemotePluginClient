@@ -73,9 +73,8 @@ private:
 };
 
 class VstClientSlim 
-	:public VSTPluginFormat::ExtraFunctions,
-	public AudioProcessorListener,
-	public RemoteClientBase
+	:public AudioProcessorListener,
+	 public RemoteClientBase
 {
 public:
 	
@@ -128,9 +127,7 @@ public:
 	bool IsInitialized() const { return _loaded; };
 
 	//----------------------- Override -----------------------------------------
-	virtual int64 getTempoAt(int64 samplePos) override;
-
-	virtual int getAutomationState() override;
+	class VstExtraFunctions;
 
 	virtual void audioProcessorParameterChanged(
 		AudioProcessor* processor,

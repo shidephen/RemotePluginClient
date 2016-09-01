@@ -15,6 +15,29 @@
 
 using namespace std;
 
+
+class VstClientSlim::VstExtraFunctions : public VSTPluginFormat::ExtraFunctions
+{
+public:
+	VstExtraFunctions(VstClientSlim& client) : _parent(client) {}
+	int64 getTempoAt(int64 samplePos) override
+	{
+		UNREFERENCED_PARAMETER(samplePos);
+		return _parent._bpm * 10000;
+	}
+
+	int getAutomationState() override
+	{
+		/** This should return the host's automation state.
+		@returns 0 = not supported, 1 = off, 2 = read, 3 = write, 4 = read/write
+		*/
+		return 4;
+	}
+private:
+	VstClientSlim& _parent;
+};
+
+
 VstClientSlim::VstClientSlim(int32_t key_in, int32_t key_out)
 	: RemoteClientBase(key_in, key_out),
 	_vstSyncData(nullptr), _bpm(0),
@@ -269,7 +292,7 @@ void VstClientSlim::_ProcessMidiEvent(const MidiEvent& event, int32_t offset)
 	_midi_buffer.addEvent(message, offset);
 }
 
-inline void VstClientSlim::_UpdateBufferSize() const
+void VstClientSlim::_UpdateBufferSize() const
 {
 	_plugin->setPlayConfigDetails(
 		_InputCount(), 
@@ -278,19 +301,19 @@ inline void VstClientSlim::_UpdateBufferSize() const
 		_buffer_size);
 }
 
-inline void VstClientSlim::_InputCount(int n)
+ void VstClientSlim::_InputCount(int n)
 {
 	int output = _OutputCount();
 	_SetIOCount(n, output);
 }
 
-inline void VstClientSlim::_OutputCount(int n)
+void VstClientSlim::_OutputCount(int n)
 {
 	int input = _InputCount();
 	_SetIOCount(input, n);
 }
 
-inline void VstClientSlim::_SetIOCount(int input, int output)
+void VstClientSlim::_SetIOCount(int input, int output)
 {
 	_plugin->setPlayConfigDetails(input, output, _sample_rate, _buffer_size);
 }
@@ -480,7 +503,7 @@ bool VstClientSlim::LoadPlugin(const std::string& path)
 		return false;
 	}
 
-	VSTPluginFormat::setExtraFunctions(_plugin, this);
+	VSTPluginFormat::setExtraFunctions(_plugin, new VstExtraFunctions(*this));
 	_loaded = true;
 	return true;
 }
@@ -489,7 +512,7 @@ bool VstClientSlim::UnloadPlugin()
 {
 	if (_plugin != nullptr)
 	{
-		if (_plugin->hasEditor())
+		if (_plugin->getActiveEditor() != nullptr)
 			_plugin->getActiveEditor()->userTriedToCloseWindow();
 
 		_plugin = nullptr;
@@ -525,20 +548,6 @@ void VstClientSlim::DoProcessing()
 		return;
 
 	_ProcessAudio(_shm);
-}
-
-int64 VstClientSlim::getTempoAt(int64 samplePos)
-{
-	UNREFERENCED_PARAMETER(samplePos);
-	return _bpm * 10000;
-}
-
-int VstClientSlim::getAutomationState()
-{
-	/** This should return the host's automation state.
-	@returns 0 = not supported, 1 = off, 2 = read, 3 = write, 4 = read/write
-	*/
-	return 4;
 }
 
 void VstClientSlim::audioProcessorParameterChanged(AudioProcessor* processor, int parameterIndex, float newValue)
