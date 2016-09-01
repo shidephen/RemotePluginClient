@@ -27,6 +27,8 @@ public:
 		std::shared_ptr<shmFifo>& shm_in,
 		std::shared_ptr<shmFifo>& shm_out);
 
+	RemoteClientBase();
+
 	virtual ~RemoteClientBase();
 
 	//-------------------------- Message routines ------------------------------

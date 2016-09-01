@@ -30,6 +30,15 @@ RemoteClientBase(
 	
 }
 
+RemoteClientBase::RemoteClientBase()
+	: _shmObj(""), _shm(nullptr)
+{
+	_in = std::make_shared<shmFifo>();
+	_out = std::make_shared<shmFifo>();
+	_key_in = _in->shmKey();
+	_key_out = _out->shmKey();
+}
+
 RemoteClientBase::~RemoteClientBase()
 {
 	SendMessage(IdQuit);
