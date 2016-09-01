@@ -135,6 +135,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="RemotePluginTest.cpp" />
     <ClCompile Include="SemaphoreTest.cpp" />
     <ClCompile Include="SharedMemoryTest.cpp" />
   </ItemGroup>
