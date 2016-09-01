@@ -13,7 +13,8 @@
 
 RemoteClientBase::
 RemoteClientBase(int32_t key_in, int32_t key_out)
-	:_shmObj(""), _shm(nullptr)
+	:_shmObj(""), _shm(nullptr),
+	 _key_in(key_in), _key_out(key_out)
 {
 	_in = std::make_shared<shmFifo>(key_in);
 	_out = std::make_shared<shmFifo>(key_out);
@@ -104,7 +105,6 @@ void RemoteClientBase::Invalidate()
 
 bool RemoteClientBase::ProcessMessage(const message& m)
 {
-	return false;
 	switch (m.id)
 	{
 	case IdUndefined:
@@ -117,6 +117,7 @@ bool RemoteClientBase::ProcessMessage(const message& m)
 	default:
 		break;
 	}
+	return true;
 }
 
 void RemoteClientBase::_SetShmKey(int32_t key)

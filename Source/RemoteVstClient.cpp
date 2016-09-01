@@ -31,12 +31,6 @@ bool VstClientSlim::ProcessMessage(const message& m)
 	bool needReplied = false;
 	switch (m.id)
 	{
-	case IdUndefined:
-		return false;
-
-	case IdQuit:
-		return false;
-
 	case IdSampleRateInformation:
 		_sample_rate = m.getInt();
 		_UpdateBufferSize();
@@ -62,13 +56,6 @@ bool VstClientSlim::ProcessMessage(const message& m)
 		DoProcessing();
 		reply.id = IdProcessingDone;
 		needReplied = true;
-		break;
-
-	case IdChangeSharedMemoryKey:
-		// TODO: 
-		break;
-
-	case IdInitDone:
 		break;
 
 	case IdVstLoadPlugin:
@@ -160,6 +147,7 @@ bool VstClientSlim::ProcessMessage(const message& m)
 // 			m_currentProgram = newCurrentProgram;
 // 			sendCurrentProgramName();
 // 		}
+		_plugin->updateHostDisplay();
 		break;
 
 	case IdShowUI:
@@ -173,7 +161,7 @@ bool VstClientSlim::ProcessMessage(const message& m)
 	}
 
 	if (needReplied)
-		SendMessage(reply);
+		RemoteClientBase::SendMessage(reply);
 
 	return true;
 }

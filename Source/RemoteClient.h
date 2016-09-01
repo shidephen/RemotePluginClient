@@ -45,12 +45,16 @@ public:
 	//--------------------------------------------------------------------------
 
 	//---------------------------- IPC -----------------------------------------
-	std::shared_ptr<shmFifo> In() const { return _in; }
-	std::shared_ptr<shmFifo> Out() const { return _out; }
+	inline int32_t KeyIn() const { return _key_in; }
+	inline int32_t KeyOut() const { return _key_out; }
+	std::shared_ptr<shmFifo>& In() { return _in; }
+	std::shared_ptr<shmFifo>& Out() { return _out; }
 	//--------------------------------------------------------------------------
 
 protected:
 	float* _shm;
+	std::shared_ptr<shmFifo> _in;
+	std::shared_ptr<shmFifo> _out;
 
 private:
 	void _SetShmKey(int32_t key);
@@ -60,8 +64,8 @@ private:
 	// lock this only when processing audio or read&write parameters.
 	std::mutex _m;
 
-	std::shared_ptr<shmFifo> _in;
-	std::shared_ptr<shmFifo> _out;
+	int32_t _key_in;
+	int32_t _key_out;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RemoteClientBase);
 };
