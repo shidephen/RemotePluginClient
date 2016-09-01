@@ -12,15 +12,68 @@ TEST(SharedMemoryTest, TestSetKey)
 
 	// non-alphabet
 	mem->Key("12");
+	ASSERT_EQ(mem->Error(), ERROR_SUCCESS);
 	ASSERT_EQ(mem->Key(), "12");
-	string key = mem->NativeKey();
-	ASSERT_TRUE(key.find_first_of("qipc_sharedmemory_") != key.npos);
+	ASSERT_EQ(
+		mem->NativeKey(), 
+		make_platform_key("qipc_sharedmemory_", "12"));
 
 	// alphabet
 	mem->Key("jazz");
+	ASSERT_EQ(mem->Error(), ERROR_SUCCESS);
 	ASSERT_EQ(mem->Key(), "jazz");
-	key = mem->NativeKey();
-	ASSERT_TRUE(key.find_first_of("qipc_sharedmemory_jazz") != key.npos);
+	ASSERT_EQ(
+		mem->NativeKey(), 
+		make_platform_key("qipc_sharedmemory_", "jazz"));
+}
+
+TEST(SharedMemoryTest, TestSwitchKey)
+{
+	const string old_key = "123";
+	const string old_native_key
+		= make_platform_key("qipc_sharedmemory_", old_key);
+	const string new_key = "jazz";
+	const string new_native_key
+		= make_platform_key("qipc_sharedmemory_", new_key);
+
+	shared_ptr<SharedMemory> mem = make_shared<SharedMemory>(old_key);
+	
+	HANDLE handle = OpenFileMapping(
+		FILE_MAP_ALL_ACCESS,
+		false,
+		old_native_key.c_str()
+	);
+
+	ASSERT_EQ(GetLastError(), ERROR_FILE_NOT_FOUND);
+	ASSERT_EQ((int)handle, 0);
+
+	mem->Create(512);
+
+	handle = OpenFileMapping(
+		FILE_MAP_ALL_ACCESS,
+		false,
+		old_native_key.c_str()
+	);
+
+	ASSERT_GT((int)handle, 0);
+
+	// switch to new key
+	mem->Key(new_key);
+	mem->Create(512);
+
+	// old memory should be recycled
+
+	handle = OpenFileMapping(
+		FILE_MAP_ALL_ACCESS,
+		false,
+		new_native_key.c_str()
+	);
+
+	ASSERT_GT((int)handle, 0);
+	// when open success last error will not be set to ERROR_SUCESS
+	//ASSERT_EQ(GetLastError(), ERROR_SUCCESS);
+
+	CloseHandle(handle);
 }
 
 TEST(SharedMemoryTest, TestCreate)
@@ -34,14 +87,19 @@ TEST(SharedMemoryTest, TestCreate)
 		mem->NativeKey().c_str());
 
 	ASSERT_EQ(GetLastError(), ERROR_SUCCESS);
+	ASSERT_GT((long)handle, 0);
 	CloseHandle(handle);
 }
 
 TEST(SharedMemoryTest, TestAttach)
 {
 	const string key = "jackb";
-	// need a semaphore to aquire
+
 	shared_ptr<SharedMemory> mem = make_shared<SharedMemory>(key);
+
+	// need a semaphore to aquire
+	shared_ptr<SystemSemaphore> sem
+		= make_shared<SystemSemaphore>(key, 1, SystemSemaphore::Create);
 	
 	HANDLE handle = CreateFileMapping(
 		INVALID_HANDLE_VALUE,
@@ -59,12 +117,17 @@ TEST(SharedMemoryTest, TestAttach)
 	ASSERT_TRUE(is_success);
 
 	ASSERT_TRUE(mem->IsAttached());
+
+	CloseHandle(handle);
 }
 
 TEST(SharedMemoryTest, TestDataWR)
 {
 	const string key = "jackc";
 	// need a semaphore to aquire
+	shared_ptr<SystemSemaphore> sem
+		= make_shared<SystemSemaphore>(key, 1, SystemSemaphore::Create);
+
 	shared_ptr<SharedMemory> mem = make_shared<SharedMemory>(key);
 
 	HANDLE handle = CreateFileMapping(
@@ -93,20 +156,24 @@ TEST(SharedMemoryTest, TestDataWR)
 	int_block[0] = 5566;
 
 	bool is_success = mem->Attach();
-	ASSERT_EQ(mem->Error(), ERROR_SUCCESS);
 	ASSERT_TRUE(is_success);
 
 	ASSERT_TRUE(mem->IsAttached());
 
 	int_block = (int*)mem->Data();
 	ASSERT_EQ(int_block[0], 5566);
+
+	CloseHandle(handle);
 }
 
 TEST(SharedMemoryTest, TestDetach)
 {
 	const string key = "jackd";
-	// need a semaphore to aquire
 	shared_ptr<SharedMemory> mem = make_shared<SharedMemory>(key);
+
+	// need a semaphore to aquire
+	shared_ptr<SystemSemaphore> sem
+		= make_shared<SystemSemaphore>(key, 1, SystemSemaphore::Create);
 
 	HANDLE handle = CreateFileMapping(
 		INVALID_HANDLE_VALUE,
@@ -127,6 +194,8 @@ TEST(SharedMemoryTest, TestDetach)
 
 	ASSERT_TRUE(mem->Detach());
 	ASSERT_FALSE(mem->IsAttached());
+
+	CloseHandle(handle);
 }
 
 TEST(SharedMemoryTest, TestDestory)

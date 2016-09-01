@@ -25,7 +25,7 @@ class CryptoProvider
 public:
 	CryptoProvider()
 	{
-		_init_provider();
+		assert(_init_provider());
 	}
 
 	~CryptoProvider()
@@ -38,6 +38,9 @@ public:
 		BYTE buffer[30];
 		fill_n(buffer, 30, 0);
 		DWORD data_size;
+
+		if (!CryptCreateHash(_hProv, CALG_SHA1, 0, 0, &_hHash))
+			return "";
 
 		if (!CryptHashData(_hHash, (const BYTE*)data.c_str(), data.length(), 0))
 			return "";
@@ -52,6 +55,9 @@ public:
 			out << (int)ele;
 		});
 
+		CryptDestroyHash(_hHash);
+		_hHash = 0;
+
 		return out.str();
 	}
 
@@ -63,9 +69,6 @@ private:
 	{
 		if (!CryptAcquireContext(&_hProv, NULL, NULL,
 				PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
-			return false;
-
-		if (!CryptCreateHash(_hProv, CALG_SHA1, 0, 0, &_hHash))
 			return false;
 
 		return true;
@@ -80,10 +83,10 @@ private:
 	}
 };
 
-static CryptoProvider provider;
 
 string make_platform_key(const string& prefix, const string& key)
 {
+	static CryptoProvider provider;
 	// Qt 将key中的非字母移除掉，并用整个key生成sha1的hash拼接在结尾
 	regex key_pattern("[^A-Za-z]");
 	string key_part = regex_replace(key, key_pattern, "");
@@ -215,19 +218,19 @@ bool SystemSemaphore::Release(size_t count /*= 1*/)
 
 const char* SharedMemory::prefix = "qipc_sharedmemory_";
 
-bool SharedMemory::_InitKey()
+bool SharedMemory::_InitKey(SystemSemaphore::AccessMode semMode)
 {
-	_release_handle();
+	//_release_handle();
 
-	_semaphore.Key(_key, 1);
+	_semaphore.Key(_key, 1, semMode);
 
-	return GetLastError() == ERROR_SUCCESS;
+	return _semaphore.Error() == ERROR_SUCCESS;
 }
 
 HANDLE SharedMemory::_aquire_handle()
 {
-	if (_handle < 0)
-		return 0;
+	if (_handle > 0)
+		return _handle;
 
 	_handle = OpenFileMapping(FILE_MAP_ALL_ACCESS, false, _native_key.c_str());
 	_last_error = GetLastError();
@@ -247,7 +250,7 @@ void SharedMemory::_release_handle()
 }
 
 SharedMemory::SharedMemory(const std::string& key)
-	: _semaphore(key), _key(""), _handle(0), _last_error(ERROR_SUCCESS),
+	: _semaphore(key, 0, SystemSemaphore::Open), _key(""), _handle(0), _last_error(ERROR_SUCCESS),
 	_native_key(""), _size(0), _locked_by_me(false), _memory(nullptr)
 {
 	Key(key);
@@ -299,7 +302,7 @@ bool SharedMemory::Create(size_t size, AccessMode mode /*= ReadWrite*/)
 	if (_native_key.empty() || _handle > 0)
 		return false;
 
-	if (!_key.empty() && !_InitKey())
+	if (!_key.empty() && !_InitKey(SystemSemaphore::Create))
 		return false;
 
 	if (!_key.empty() && !_semaphore.Acquire())
@@ -320,6 +323,26 @@ bool SharedMemory::Create(size_t size, AccessMode mode /*= ReadWrite*/)
 		return false;
 	}
 
+	int permissions = (mode == ReadOnly ? FILE_MAP_READ : FILE_MAP_ALL_ACCESS);
+	_memory = MapViewOfFile(_handle, permissions, 0, 0, 0);
+
+	if (NULL == _memory)
+	{
+		_last_error = GetLastError();
+		_release_handle();
+		_semaphore.Release();
+		return false;
+	}
+
+	MEMORY_BASIC_INFORMATION info;
+	if (!VirtualQuery(_memory, &info, sizeof(info)))
+	{
+		_semaphore.Release();
+		return false;
+	}
+
+	_size = info.RegionSize;
+
 	_semaphore.Release();
 
 	return true;
@@ -332,7 +355,7 @@ size_t SharedMemory::Size() const
 
 bool SharedMemory::Attach(AccessMode mode /*= ReadWrite*/)
 {
-	if (IsAttached() || !_InitKey())
+	if (IsAttached() || !_InitKey(SystemSemaphore::Open))
 		return false;
 
 	_handle = _aquire_handle();
@@ -450,8 +473,10 @@ shmFifo::shmFifo() :
 	do
 	{
 		m_shmObj.Key(to_string(++m_shmKey));
-		m_shmObj.Create(sizeof(shmData));
-	} while (m_shmObj.Error() != ERROR_SUCCESS);
+		//m_shmObj.Create(sizeof(shmData));
+	} while (!m_shmObj.Create(sizeof(shmData)));
+
+	//assert(m_shmObj.Attach());
 
 	m_data = (shmData *)m_shmObj.Data();
 
@@ -484,9 +509,15 @@ shmFifo::shmFifo(int32_t _shm_key) :
 		m_data = (shmData *)m_shmObj.Data();
 	}
 	assert(m_data != NULL);
-	m_dataSem.Key(to_string(m_data->dataSem.semKey));
-	m_messageSem.Key(to_string(
-		m_data->messageSem.semKey));
+	m_dataSem.Key(
+		to_string(m_data->dataSem.semKey),
+		0,
+		SystemSemaphore::Open);
+
+	m_messageSem.Key(
+		to_string(m_data->messageSem.semKey),
+		0,
+		SystemSemaphore::Open);
 }
 
 shmFifo::~shmFifo()

@@ -18,20 +18,59 @@ TEST(SemaphoreTest, TestSetKey)
 	sem->Key("12");
 	ASSERT_EQ(sem->Key(), "12");
 	ASSERT_EQ(sem->Error(), ERROR_SUCCESS);
-	string key = sem->NativeKey();
-	ASSERT_TRUE(key.find_first_of("qipc_systemsem_") != key.npos);
+	ASSERT_EQ(
+		sem->NativeKey(),
+		make_platform_key("qipc_systemsem_", "12"));
 
 	// alphabet
 	sem->Key("jazz");
 	ASSERT_EQ(sem->Key(), "jazz");
 	ASSERT_EQ(sem->Error(), ERROR_SUCCESS);
-	key = sem->NativeKey();
-	ASSERT_TRUE(key.find_first_of("qipc_systemsem_jazz") != key.npos);
+	ASSERT_EQ(
+		sem->NativeKey(),
+		make_platform_key("qipc_systemsem_", "jazz"));
+}
+
+TEST(SemaphoreTest, TestCreate)
+{
+	const string key = "a";
+	const string native_key = make_platform_key("qipc_systemsem_", key);
+
+	HANDLE handle = OpenSemaphore(
+		SEMAPHORE_ALL_ACCESS,
+		FALSE,
+		native_key.c_str()
+	);
+
+	ASSERT_EQ((int)handle, 0);
+
+	shared_ptr<SystemSemaphore> sem 
+		= make_shared<SystemSemaphore>(key, 0, SystemSemaphore::Create);
+
+
+	handle = OpenSemaphore(
+		SEMAPHORE_ALL_ACCESS,
+		FALSE,
+		native_key.c_str()
+	);
+
+	ASSERT_GT((int)handle, 0);
 }
 
 TEST(SemaphoreTest, TestAquirement)
 {
-	shared_ptr<SystemSemaphore> sem = make_shared<SystemSemaphore>("abc", 1);
+	const string key = "ab";
+	const string native_key = make_platform_key("qipc_systemsem_", key);
+
+	HANDLE handle = CreateSemaphore(
+		NULL,
+		1,
+		MAXLONG,
+		native_key.c_str()
+	);
+
+	shared_ptr<SystemSemaphore> sem 
+		= make_shared<SystemSemaphore>(key, 0, SystemSemaphore::Open);
 	
 	auto handler = std::async([&] {
 		sem->Acquire();
@@ -47,12 +86,24 @@ TEST(SemaphoreTest, TestAquirement)
 	// none remained
 	EXPECT_EQ(handler.wait_for(chrono::seconds{ 1 }), future_status::timeout);
 	// future created by async will block when distoryed.
-	sem->Release(1);
+	ReleaseSemaphore(handle, 1, NULL);
+	CloseHandle(handle);
 }
 
 TEST(SemaphoreTest, TestRelease)
 {
-	shared_ptr<SystemSemaphore> sem = make_shared<SystemSemaphore>("abc");
+	const string key = "abc";
+	const string native_key = make_platform_key("qipc_systemsem_", key);
+
+	HANDLE handle = CreateSemaphore(
+		NULL,
+		0,
+		MAXLONG,
+		native_key.c_str()
+	);
+
+	shared_ptr<SystemSemaphore> sem
+		= make_shared<SystemSemaphore>(key, 0, SystemSemaphore::Open);
 
 	auto handler = std::async([&] {
 		sem->Acquire();
@@ -64,4 +115,6 @@ TEST(SemaphoreTest, TestRelease)
 	// signaled
 	ASSERT_TRUE(sem->Release(1));
 	ASSERT_EQ(handler.wait_for(chrono::seconds{ 1 }), future_status::ready);
+
+	CloseHandle(handle);
 }

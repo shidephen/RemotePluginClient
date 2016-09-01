@@ -14,7 +14,7 @@
 #include <vector>
 #include <windows.h>
 
-static std::string 
+std::string 
 make_platform_key(
 	const std::string& prefix, 
 	const std::string& key);
@@ -106,7 +106,7 @@ private:
 	
 	std::string _key;
 	std::string _native_key;
-	bool _InitKey();
+	bool _InitKey(SystemSemaphore::AccessMode semMode);
 
 	void* _memory;
 	size_t _size;
